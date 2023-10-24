@@ -16,7 +16,18 @@
     devShells =
       forEachSystem
       (system: let
-        pkgs = nixpkgs.legacyPackages.${system};
+        pkgs = import nixpkgs {
+          inherit system;
+          # opencv4 override is done in an overlay as it is a dependency
+          # for multiple other python libraries and will have conflicts
+          # otherwise
+          overlays = [
+            (final: prev: {
+              # need gtk support for opencv to show the preview window
+              opencv4 = prev.opencv4.override {enableGtk3 = true;};
+            })
+          ];
+        };
       in {
         default = devenv.lib.mkShell {
           inherit inputs pkgs;
@@ -37,10 +48,10 @@
                 enable = true;
                 package = pkgs.python3.withPackages (ps:
                   with ps; [
-                    # needed for mmpose < 1.0
-                    # mmpose 1.0+ was a major change that broke imports and loading model data
                     (mmcv.overrideAttrs
                       (old: {
+                        # needed for mmpose < 1.0
+                        # mmpose 1.0+ was a major change that broke imports and loading model data
                         src = pkgs.fetchFromGitHub {
                           owner = "open-mmlab";
                           repo = "mmcv";
@@ -51,8 +62,6 @@
                         disabledTests = old.disabledTests ++ ["test_digit_version"];
                       }))
                     numpy
-                    torch
-                    torchvision
                     flake8
                     pep8
                   ]);
