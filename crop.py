@@ -20,9 +20,14 @@ class BoxIntersections(NamedTuple):
     x: int
 
 
-def calculate_crop(image, boxes: list[Box]) -> tuple[Box, list[Box]]:
+def calculate_crop(
+    image,
+    boxes: list[Box],
+    # (width, height)
+    ratio: tuple[int, int] = (9, 16),
+) -> tuple[Box, list[Box]]:
     height, width = image.shape[:2]
-    target_width = int(height / 16 * 9)
+    target_width = int(height / ratio[1] * ratio[0])
 
     def clamp(xmin) -> tuple[int, int]:
         xmin = int(xmin)
