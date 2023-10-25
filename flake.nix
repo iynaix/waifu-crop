@@ -48,19 +48,7 @@
                 enable = true;
                 package = pkgs.python3.withPackages (ps:
                   with ps; [
-                    (mmcv.overrideAttrs
-                      (old: {
-                        # needed for mmpose < 1.0
-                        # mmpose 1.0+ was a major change that broke imports and loading model data
-                        src = pkgs.fetchFromGitHub {
-                          owner = "open-mmlab";
-                          repo = "mmcv";
-                          rev = "v1.7.0";
-                          hash = "sha256-EVu6D6rTeebTKFCMNIbgQpvBS52TKk3vy2ReReJ9VQE=";
-                        };
-
-                        disabledTests = old.disabledTests ++ ["test_digit_version"];
-                      }))
+                    mmcv
                     numpy
                     flake8
                     pep8

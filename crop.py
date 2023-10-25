@@ -24,7 +24,7 @@ def calculate_crop(
     image,
     boxes: list[Box],
     # (width, height)
-    ratio: tuple(int, int) = (9, 16),
+    ratio: tuple[int, int] = (9, 16),
 ) -> tuple[Box, list[Box]]:
     height, width = image.shape[:2]
     target_width = int(height / ratio[1] * ratio[0])

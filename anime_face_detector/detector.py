@@ -5,63 +5,67 @@ import warnings
 from typing import Optional, Union
 
 import cv2
-import mmcv
+import mmengine
 import numpy as np
 import torch.nn as nn
 from mmdet.apis import inference_detector, init_detector
-from mmpose.apis import inference_top_down_pose_model, init_pose_model
-from mmpose.datasets import DatasetInfo
+from mmpose.apis import inference_topdown, init_model
+
+# from mmpose.datasets import DatasetInfo
 
 
 class LandmarkDetector:
     def __init__(
-            self,
-            landmark_detector_config_or_path: Union[mmcv.Config, str,
-                                                    pathlib.Path],
-            landmark_detector_checkpoint_path: Union[str, pathlib.Path],
-            face_detector_config_or_path: Optional[Union[mmcv.Config, str,
-                                                         pathlib.Path]] = None,
-            face_detector_checkpoint_path: Optional[Union[
-                str, pathlib.Path]] = None,
-            device: str = 'cuda:0',
-            flip_test: bool = True,
-            box_scale_factor: float = 1.1):
+        self,
+        landmark_detector_config_or_path: Union[mmengine.Config, str, pathlib.Path],
+        landmark_detector_checkpoint_path: Union[str, pathlib.Path],
+        face_detector_config_or_path: Optional[
+            Union[mmengine.Config, str, pathlib.Path]
+        ] = None,
+        face_detector_checkpoint_path: Optional[Union[str, pathlib.Path]] = None,
+        device: str = "cuda:0",
+        flip_test: bool = True,
+        box_scale_factor: float = 1.1,
+    ):
         landmark_config = self._load_config(landmark_detector_config_or_path)
-        self.dataset_info = DatasetInfo(
-            landmark_config.dataset_info)  # type: ignore
         face_detector_config = self._load_config(face_detector_config_or_path)
 
         self.landmark_detector = self._init_pose_model(
-            landmark_config, landmark_detector_checkpoint_path, device,
-            flip_test)
+            landmark_config, landmark_detector_checkpoint_path, device, flip_test
+        )
         self.face_detector = self._init_face_detector(
-            face_detector_config, face_detector_checkpoint_path, device)
+            face_detector_config, face_detector_checkpoint_path, device
+        )
 
         self.box_scale_factor = box_scale_factor
 
     @staticmethod
     def _load_config(
-        config_or_path: Optional[Union[mmcv.Config, str, pathlib.Path]]
-    ) -> Optional[mmcv.Config]:
-        if config_or_path is None or isinstance(config_or_path, mmcv.Config):
+        config_or_path: Optional[Union[mmengine.Config, str, pathlib.Path]]
+    ) -> Optional[mmengine.Config]:
+        if config_or_path is None or isinstance(config_or_path, mmengine.Config):
             return config_or_path
-        return mmcv.Config.fromfile(config_or_path)
+        return mmengine.Config.fromfile(config_or_path)
 
     @staticmethod
-    def _init_pose_model(config: mmcv.Config,
-                         checkpoint_path: Union[str, pathlib.Path],
-                         device: str, flip_test: bool) -> nn.Module:
+    def _init_pose_model(
+        config: mmengine.Config,
+        checkpoint_path: Union[str, pathlib.Path],
+        device: str,
+        flip_test: bool,
+    ) -> nn.Module:
         if isinstance(checkpoint_path, pathlib.Path):
             checkpoint_path = checkpoint_path.as_posix()
-        model = init_pose_model(config, checkpoint_path, device=device)
+        model = init_model(config, checkpoint_path, device=device)
         model.cfg.model.test_cfg.flip_test = flip_test
         return model
 
     @staticmethod
-    def _init_face_detector(config: Optional[mmcv.Config],
-                            checkpoint_path: Optional[Union[str,
-                                                            pathlib.Path]],
-                            device: str) -> Optional[nn.Module]:
+    def _init_face_detector(
+        config: Optional[mmengine.Config],
+        checkpoint_path: Optional[Union[str, pathlib.Path]],
+        device: str,
+    ) -> Optional[nn.Module]:
         if config is not None:
             if isinstance(checkpoint_path, pathlib.Path):
                 checkpoint_path = checkpoint_path.as_posix()
@@ -92,20 +96,18 @@ class LandmarkDetector:
         return boxes
 
     def _detect_landmarks(
-            self, image: np.ndarray,
-            boxes: list[dict[str, np.ndarray]]) -> list[dict[str, np.ndarray]]:
-        preds, _ = inference_top_down_pose_model(
+        self, image: np.ndarray, boxes: list[dict[str, np.ndarray]]
+    ) -> list[dict[str, np.ndarray]]:
+        preds, _ = inference_topdown(
             self.landmark_detector,
             image,
             boxes,
-            format='xyxy',
-            dataset_info=self.dataset_info,
-            return_heatmap=False)
+            format="xyxy",
+        )
         return preds
 
     @staticmethod
-    def _load_image(
-            image_or_path: Union[np.ndarray, str, pathlib.Path]) -> np.ndarray:
+    def _load_image(image_or_path: Union[np.ndarray, str, pathlib.Path]) -> np.ndarray:
         if isinstance(image_or_path, np.ndarray):
             image = image_or_path
         elif isinstance(image_or_path, str):
@@ -119,7 +121,7 @@ class LandmarkDetector:
     def __call__(
         self,
         image_or_path: Union[np.ndarray, str, pathlib.Path],
-        boxes: Optional[list[np.ndarray]] = None
+        boxes: Optional[list[np.ndarray]] = None,
     ) -> list[dict[str, np.ndarray]]:
         """Detect face landmarks.
 
@@ -138,10 +140,11 @@ class LandmarkDetector:
                 boxes = self._detect_faces(image)
             else:
                 warnings.warn(
-                    'Neither the face detector nor the bounding box is '
-                    'specified. So the entire image is treated as the face '
-                    'region.')
+                    "Neither the face detector nor the bounding box is "
+                    "specified. So the entire image is treated as the face "
+                    "region."
+                )
                 h, w = image.shape[:2]
                 boxes = [np.array([0, 0, w - 1, h - 1, 1])]
-        box_list = [{'bbox': box} for box in boxes]
+        box_list = [{"bbox": box} for box in boxes]
         return self._detect_landmarks(image, box_list)
