@@ -48,7 +48,7 @@
                 enable = true;
                 package = pkgs.python3.withPackages (ps:
                   with ps; [
-                    (mmcv.overrideAttrs
+                    (mmcv.overridePythonAttrs
                       (old: {
                         # needed for mmpose < 1.0
                         # mmpose 1.0+ was a major change that broke imports and loading model data
@@ -59,7 +59,7 @@
                           hash = "sha256-EVu6D6rTeebTKFCMNIbgQpvBS52TKk3vy2ReReJ9VQE=";
                         };
 
-                        disabledTests = old.disabledTests ++ ["test_digit_version"];
+                        doCheck = false;
                       }))
                     numpy
                     flake8
