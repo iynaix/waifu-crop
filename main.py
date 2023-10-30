@@ -1,3 +1,4 @@
+import json
 import cv2
 import anime_face_detector
 from crop import WALLPAPER_DIR, VERT_WALLPAPER_DIR, write_cropped_image, calculate_crop
@@ -72,21 +73,24 @@ def draw(image, boxes, color=(0, 255, 0), font_scale=0.3, thickness=1):
 PREVIEW_IMAGES = False
 
 if __name__ == "__main__":
-    # faster-rcnn is also available
-    detector_model = "yolov3"
-    # cpu is also available
-    # detector_device = "cuda:0"
-    detector_device = "cpu"
-
     detector = anime_face_detector.create_detector(
-        face_detector_name=detector_model,
-        device=detector_device,
+        # faster-rcnn is also available
+        face_detector_name="yolov3",
+        # "cuda:0" is also available
+        device="cpu",
     )
+
+    try:
+        images_to_skip = set(json.load(open("skip.json")))
+    except FileNotFoundError:
+        images_to_skip = set()
 
     # skip images if already cropped
     vertical_wallpapers = set(f.name for f in VERT_WALLPAPER_DIR.iterdir())
     image_paths = [
-        img for img in WALLPAPER_DIR.iterdir() if img.name not in vertical_wallpapers
+        img
+        for img in WALLPAPER_DIR.iterdir()
+        if img.name not in vertical_wallpapers and img.name not in images_to_skip
     ]
 
     # uncomment to test specific images
@@ -111,6 +115,7 @@ if __name__ == "__main__":
 
         # skip if no boxes
         if not boxes:
+            images_to_skip.add(path.name)
             continue
 
         print(path, "x".join(image.shape[:2:-1]))
@@ -142,3 +147,6 @@ if __name__ == "__main__":
         # write to file
         else:
             write_cropped_image(image, boxes, path.name)
+
+    # write skipped images to file
+    json.dump(sorted(images_to_skip), open("skip.json", "w"))
