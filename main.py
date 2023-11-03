@@ -1,7 +1,12 @@
 import json
 import cv2
 import anime_face_detector
-from crop import WALLPAPER_DIR, VERT_WALLPAPER_DIR, write_cropped_image, calculate_crop
+from crop import (
+    WALLPAPER_DIR,
+    VERT_WALLPAPER_DIR,
+    write_cropped_image,
+    preview_image,
+)
 
 
 def detect(
@@ -104,7 +109,15 @@ if __name__ == "__main__":
     if PREVIEW_IMAGES:
         print("Start inferencing. Press `q` to cancel. Press  `-` to go back.")
 
-    for path in image_paths:
+    image_paths = sorted(image_paths)
+
+    idx = 0
+    while True:
+        if idx >= len(image_paths) or idx < 0:
+            break
+
+        path = image_paths[idx]
+
         # use defaults
         image = cv2.imread(str(path))
         boxes = detect(
@@ -116,37 +129,18 @@ if __name__ == "__main__":
         # skip if no boxes
         if not boxes:
             images_to_skip.add(path.name)
+            idx += 1
             continue
 
         print(path, "x".join(image.shape[:2:-1]))
 
         # display the images
         if PREVIEW_IMAGES:
-            rect, detection_boxes = calculate_crop(image, boxes)
-            boxes_to_draw = [rect, *detection_boxes]
-
-            drawn_image = draw(
-                image,
-                boxes_to_draw,
-                # BGR
-                color=(0, 255, 0),
-                thickness=3,
-            )
-
-            w, h = image.shape[:2][::-1]
-            resized_image = cv2.resize(drawn_image, (int(w / h * 720), 720))
-            cv2.imshow("Image", resized_image)
-
-            key = cv2.waitKey(0) & 0xFF
-            # esc
-            if key == ord("q") or key == 27:
-                break
-            # right arrow
-            elif key == ord("n") or key == 39:
-                continue
+            idx = preview_image(image, boxes, idx)
         # write to file
         else:
             write_cropped_image(image, boxes, path.name)
+            idx += 1
 
     # write skipped images to file
     json.dump(sorted(images_to_skip), open("skip.json", "w"))
