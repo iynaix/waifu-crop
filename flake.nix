@@ -1,6 +1,6 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/e32eb6818377a7d3ed2d0815418e6cb8427819e7";
     systems.url = "github:nix-systems/default";
     devenv.url = "github:cachix/devenv";
   };
@@ -38,7 +38,9 @@
               };
 
               # https://devenv.sh/reference/options/
-              packages = [
+              packages = with pkgs; [
+                oxipng
+                realesrgan-ncnn-vulkan
               ];
 
               dotenv.disableHint = true;
@@ -62,8 +64,9 @@
                         doCheck = false;
                       }))
                     numpy
+                    pillow
                     flake8
-                    pep8
+                    black
                   ]);
                 venv.enable = true;
               };

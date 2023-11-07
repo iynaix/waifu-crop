@@ -1,10 +1,17 @@
 import cv2
 from typing import TypedDict, NamedTuple
 from pathlib import Path
+import anime_face_detector
 
 
 WALLPAPER_DIR = Path("~/Pictures/Wallpapers").expanduser()
 VERT_WALLPAPER_DIR = Path("~/Pictures/WallpapersVertical").expanduser()
+DETECTOR = anime_face_detector.create_detector(
+    # faster-rcnn is also available
+    face_detector_name="faster-rcnn",
+    # "cuda:0" is also available
+    device="cpu",
+)
 
 
 class Box(TypedDict):
@@ -129,16 +136,6 @@ def calculate_crop(
         )
 
 
-def write_cropped_image(image, boxes: list[Box], filename: str):
-    rect, _ = calculate_crop(image, boxes)
-
-    cropped = image[
-        rect["ymin"] : rect["ymax"], rect["xmin"] : rect["xmax"]  # noqa: E203
-    ]
-
-    cv2.imwrite(str(VERT_WALLPAPER_DIR / filename), cropped)
-
-
 def draw(image, boxes, color=(0, 255, 0), font_scale=0.3, thickness=1):
     """
     Draw boxes on the image. This function does not modify the image in-place.
@@ -206,3 +203,30 @@ def preview_image(image, boxes: list[Box], idx: int) -> int:
         return idx - 1
 
     return idx + 1
+
+
+def detect(
+    img,
+    face_score_threshold: float,
+):
+    image = cv2.imread(img)
+    preds = DETECTOR(image)
+
+    boxes = []
+    for pred in preds:
+        box = pred["bbox"]
+        score = box[4]
+        if score < face_score_threshold:
+            continue
+
+        boxes.append(
+            {
+                "xmin": int(box[0]),
+                "ymin": int(box[1]),
+                "xmax": int(box[2]),
+                "ymax": int(box[3]),
+                "confidence": box[4],
+            }
+        )
+
+    return boxes
