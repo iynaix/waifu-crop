@@ -19,7 +19,7 @@ if __name__ == "__main__":
         needs_upscale = not (width >= TARGET_WIDTH and height >= TARGET_HEIGHT)
 
         if needs_upscale:
-            out_path = WALLPAPER_DIR / (p.name.replace(".jpg", ".png"))
+            out_path = WALLPAPER_DIR / (p.name.replace(".jpg", ".png").replace(".jpeg", ".png"))
             width2 = width * 2
             height2 = height * 2
 

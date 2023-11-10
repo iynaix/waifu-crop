@@ -57,7 +57,10 @@ def calculate_crops(
     ratio: tuple[int, int] = (9, 16),
 ) -> tuple[Box, list[Box]]:
     height, width = image.shape[:2]
-    target_width = int(height / ratio[1] * ratio[0])
+    if ratio[1] > ratio[0]:
+        target_width = int(height / ratio[1] * ratio[0])
+    else:
+        target_width = int(width / ratio[0] * ratio[1])
 
     def clamp(xmin) -> tuple[int, int]:
         xmin = int(xmin)
