@@ -136,14 +136,13 @@ def calculate_crop(
         )
 
 
-def draw(image, boxes, color=(0, 255, 0), font_scale=0.3, thickness=1):
+def draw(image, boxes, color=(0, 255, 0), thickness=1):
     """
     Draw boxes on the image. This function does not modify the image in-place.
     Args:
         image: A numpy BGR image.
         boxes: A list of dicts of {xmin, xmax, ymin, ymax, confidence}
         colors: Color (BGR) used to draw.
-        font_scale: Font size for the confidence level display.
         thickness: Thickness of the line.
     Returns:
         A drawn image.
@@ -151,26 +150,7 @@ def draw(image, boxes, color=(0, 255, 0), font_scale=0.3, thickness=1):
     image = image.copy()
     for box in boxes:
         xmin, ymin, xmax, ymax = box["xmin"], box["ymin"], box["xmax"], box["ymax"]
-        confidence = box["confidence"]
-        label = f"{confidence * 100:.2f}%"
-        ret, baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, 1)
         cv2.rectangle(image, (xmin, ymin), (xmax, ymax), color, thickness)
-        cv2.rectangle(
-            image,
-            (xmin, ymax - ret[1] - baseline),
-            (xmin + ret[0], ymax),
-            color,
-            -1,
-        )
-        cv2.putText(
-            image,
-            label,
-            (xmin, ymax - baseline),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            font_scale,
-            (0, 0, 0),
-            1,
-        )
     return image
 
 
@@ -187,7 +167,7 @@ def preview_image(image, boxes: list[Box], idx: int) -> int:
     )
 
     w, h = image.shape[:2][::-1]
-    resized_image = cv2.resize(drawn_image, (int(w / h * 720), 720))
+    resized_image = cv2.resize(drawn_image, (1280, int(h / w * 1280)))
     cv2.imshow("Image", resized_image)
 
     key = cv2.waitKey(0) & 0xFF

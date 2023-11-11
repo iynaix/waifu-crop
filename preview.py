@@ -29,15 +29,6 @@ def draw(image, boxes, color=(0, 255, 0), font_scale=0.3, thickness=1):
             color,
             -1,
         )
-        cv2.putText(
-            image,
-            label,
-            (xmin, ymax - baseline),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            font_scale,
-            (0, 0, 0),
-            1,
-        )
     return image
 
 

@@ -9,44 +9,52 @@ from crop import (
 )
 
 INPUT_DIR = Path("in")
+BOX_COLORS = [
+    (255, 0, 0),
+    (0, 255, 0),
+    (0, 0, 255),
+    (255, 255, 0),
+    (0, 255, 255),
+    (255, 0, 255),
+    (255, 255, 255),
+]
 
 
-def draw_idx(image, boxes, color=(0, 255, 0), font_scale=1, thickness=1):
+def draw(image, boxes, font_scale=3, thickness=1):
     """
     Draw boxes on the image. This function does not modify the image in-place.
     Args:
         image: A numpy BGR image.
         boxes: A list of dicts of {xmin, xmax, ymin, ymax, confidence}
-        colors: Color (BGR) used to draw.
         font_scale: Font size for the confidence level display.
         thickness: Thickness of the line.
     Returns:
         A drawn image.
     """
     image = image.copy()
-    for idx, box in enumerate(boxes, start=1):
+    for idx, box in enumerate(boxes):
+        color = BOX_COLORS[idx % len(BOX_COLORS)]
+
         xmin, ymin, xmax, ymax = box["xmin"], box["ymin"], box["xmax"], box["ymax"]
-        label = f"{idx}"
-        ret, baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, 20)
+        label = str(idx + 1)
+        ret, baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, 5)
         cv2.rectangle(image, (xmin, ymin), (xmax, ymax), color, thickness)
-        # do not draw box indexes for faces, only for large rectangles
-        if (idx - 1) < len(boxes) // 2:
-            cv2.rectangle(
-                image,
-                (xmin, ymax - ret[1] - baseline),
-                (xmin + ret[0], ymax),
-                color,
-                -1,
-            )
-            cv2.putText(
-                image,
-                label,
-                (xmin, ymax - baseline),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                font_scale,
-                (0, 0, 0),
-                1,
-            )
+        cv2.rectangle(
+            image,
+            (xmin, ymax - ret[1] - baseline),
+            (xmin + ret[0], ymax),
+            color,
+            -1,
+        )
+        cv2.putText(
+            image,
+            label,
+            (xmin, ymax - baseline),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            font_scale,
+            (0, 0, 0),
+            3,
+        )
     return image
 
 
@@ -143,7 +151,7 @@ def calculate_crops(
                 }
             )
 
-        return rects + boxes
+        return sorted(rects, key=lambda r: r["xmin"])
 
 
 if __name__ == "__main__":
@@ -173,12 +181,11 @@ if __name__ == "__main__":
         print(path, "x".join(image.shape[:2:-1]))
 
         # display the images
-        # idx = preview_image(image, boxes, idx)
         rects = calculate_crops(image, boxes)
-        drawn_image = draw_idx(image, rects, color=(0, 255, 0), thickness=3)
+        drawn_image = draw(image, rects, thickness=3)
 
         w, h = image.shape[:2][::-1]
-        resized_image = cv2.resize(drawn_image, (int(w / h * 720), 720))
+        resized_image = cv2.resize(drawn_image, (1280, int(h / w * 1280)))
         cv2.imshow("Image", resized_image)
 
         key = cv2.waitKey(0) & 0xFF
@@ -194,9 +201,8 @@ if __name__ == "__main__":
             idx = idx - 1
 
         # crop the image on index selection
-        elif key in [ord(str(n)) for n in range(1, len(rects) // 2 + 1)]:
-            box_idx = int(chr(key)) - 1
-            rect = rects[box_idx]
+        elif key in [ord(str(n)) for n in range(1, len(rects) + 1)]:
+            rect = rects[int(chr(key)) - 1]
 
             cropped = image[
                 rect["ymin"] : rect["ymax"], rect["xmin"] : rect["xmax"]  # noqa: E203
