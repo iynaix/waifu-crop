@@ -44,8 +44,6 @@
               ];
 
               dotenv.disableHint = true;
-              languages.c.enable = true;
-              languages.cplusplus.enable = true;
               languages.python = {
                 enable = true;
                 package = pkgs.python3.withPackages (ps:
