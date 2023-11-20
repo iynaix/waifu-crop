@@ -13,6 +13,9 @@ DETECTOR = anime_face_detector.create_detector(
     device="cpu",
 )
 
+Dimensions = tuple[int, int]
+AspectRatio = tuple[int, int]
+
 
 class Box(TypedDict):
     xmin: int
@@ -27,70 +30,118 @@ class BoxIntersections(NamedTuple):
     x: int
 
 
+def get_largest_crop(
+    image_dims: Dimensions,
+    aspect_ratio: AspectRatio = (9, 16),
+) -> tuple[Dimensions, str]:
+    image_width, image_height = image_dims
+    target_width, target_height = aspect_ratio
+
+    # Calculate width and height that can be cropped while maintaining the aspect ratio
+    crop_width = min(image_width, int(image_height * target_width / target_height))
+    crop_height = min(image_height, int(image_width * target_height / target_width))
+
+    # Choose the larger dimension to get the largest possible cropped rectangle
+    if crop_width * target_height > crop_height * target_width:
+        return (crop_width, crop_height), "y"
+    else:
+        return (int(crop_height * target_width / target_height), crop_height), "x"
+
+
 def calculate_crop(
     image,
     boxes: list[Box],
-    # (width, height)
-    ratio: tuple[int, int] = (9, 16),
+    aspect_ratio: AspectRatio = (9, 16),
 ) -> tuple[Box, list[Box]]:
     height, width = image.shape[:2]
-    target_width = int(height / ratio[1] * ratio[0])
+    (target_width, target_height), direction = get_largest_crop(
+        (width, height), aspect_ratio
+    )
 
-    def clamp(xmin) -> tuple[int, int]:
-        xmin = int(xmin)
-        xmax = xmin + target_width
+    def clamp(val, direction):
+        min_ = int(val)
+        empty = {
+            "xmin": 0,
+            "xmax": 0,
+            "ymin": 0,
+            "ymax": 0,
+            "confidence": 1,
+        }
 
         # check if out of bounds and constrain it
-        if xmin < 0:
-            return 0, target_width
-        elif xmax > width:
-            return width - target_width, width
+        if direction == "x":
+            max_ = min_ + target_width
+            if min_ < 0:
+                return {**empty, "xmax": target_width, "ymax": height}
+            elif max_ > width:
+                return {
+                    **empty,
+                    "xmin": width - target_width,
+                    "xmax": width,
+                    "ymax": height,
+                }
+            else:
+                return {**empty, "xmin": min_, "xmax": max_, "ymax": height}
         else:
-            return xmin, xmax
+            max_ = min_ + target_height
+            if min_ < 0:
+                return {**empty, "ymax": target_height, "xmax": width}
+            elif max_ > width:
+                return {
+                    **empty,
+                    "ymin": height - target_height,
+                    "ymax": width,
+                    "xmax": width,
+                }
+            else:
+                return {**empty, "ymin": min_, "ymax": max_, "xmax": width}
 
     if len(boxes) == 1:
         box = boxes[0]
-        box_mid_x = (box["xmin"] + box["xmax"]) / 2
-        target_x = box_mid_x - target_width / 2
-
-        xmin, xmax = clamp(target_x)
+        box_mid = (box[f"{direction}min"] + box[f"{direction}max"]) / 2
+        target = (
+            box_mid - target_width / 2
+            if direction == "x"
+            else box_mid - target_height / 2
+        )
 
         return (
-            {
-                "xmin": xmin,
-                "xmax": xmax,
-                "ymin": 0,
-                "ymax": height,
-                "confidence": box["confidence"],
-            },
+            clamp(target, direction),
             boxes,
         )
 
     else:
-        # sort boxes by xmin
-        boxes.sort(key=lambda box: box["xmin"])
+        min_ = "xmin" if direction == "x" else "ymin"
+        max_ = "xmax" if direction == "x" else "ymax"
+
+        # sort boxes by min_
+        boxes.sort(key=lambda box: box[min_])
 
         max_boxes = 0
         # (area, xmin of box)
         boxes_info: list[BoxIntersections] = []
 
-        for rect_left in range(width - target_width):
-            rect_right = rect_left + target_width
+        for rect_start in range(
+            width - target_width if direction == "x" else height - target_height
+        ):
+            rect_end = rect_start + (
+                target_width if direction == "x" else target_height
+            )
 
             # check number of boxes in decimal within enclosed within larger rectangle
             num_boxes = 0
             boxes_area = 0
             for box in boxes:
                 # no intersection, we overshot the final box
-                if box["xmin"] > rect_right:
+                if box[min_] > rect_end:
                     break
 
                 # no intersection
-                elif box["xmax"] < rect_left:
+                elif box[max_] < rect_start:
                     continue
 
                 # full intersection
-                elif box["xmin"] >= rect_left and box["xmax"] <= rect_right:
+                elif box[min_] >= rect_start and box[max_] <= rect_end:
                     num_boxes += 1
                     boxes_area += (box["xmax"] - box["xmin"]) * (
                         box["ymax"] - box["ymin"]
@@ -98,22 +149,25 @@ def calculate_crop(
                     continue
 
                 # partial intersection
-                if box["xmin"] <= rect_right and box["xmax"] > rect_right:
-                    num_boxes += (rect_right - box["xmin"]) / (
-                        box["xmax"] - box["xmin"]
-                    )
-                    boxes_area += (rect_right - box["xmin"]) * (
-                        box["ymax"] - box["ymin"]
-                    )
+                if box[min_] <= rect_end and box[max_] > rect_end:
+                    num_boxes += (rect_end - box[min_]) / (box[max_] - box[min_])
+                    if direction == "x":
+                        boxes_area += (rect_end - box[min_]) * (
+                            box["ymax"] - box["ymin"]
+                        )
+                    else:
+                        boxes_area += (rect_end - box[min_]) * (
+                            box["xmax"] - box["xmin"]
+                        )
                     continue
 
             # update max boxes
             if num_boxes > 0:
                 if num_boxes > max_boxes:
                     max_boxes = num_boxes
-                    boxes_info = [BoxIntersections(boxes_area, rect_left)]
+                    boxes_info = [BoxIntersections(boxes_area, rect_start)]
                 elif num_boxes == max_boxes:
-                    boxes_info.append(BoxIntersections(boxes_area, rect_left))
+                    boxes_info.append(BoxIntersections(boxes_area, rect_start))
 
         boxes_info.sort()
         # use the match with the maximum area of face coverage
@@ -121,17 +175,10 @@ def calculate_crop(
         boxes_info = [box for box in boxes_info if box.area == max_box_area]
 
         # get the midpoint of matches to center the box
-        start_x = boxes_info[len(boxes_info) // 2].x
-        xmin, xmax = clamp(start_x)
+        start = getattr(boxes_info[len(boxes_info) // 2], direction)
 
         return (
-            {
-                "xmin": xmin,
-                "xmax": xmax,
-                "ymin": 0,
-                "ymax": height,
-                "confidence": boxes[0]["confidence"],
-            },
+            clamp(start, direction),
             boxes,
         )
 
@@ -154,8 +201,14 @@ def draw(image, boxes, color=(0, 255, 0), thickness=1):
     return image
 
 
-def preview_image(image, boxes: list[Box], idx: int) -> int:
-    rect, detection_boxes = calculate_crop(image, boxes)
+def preview_image(
+    image,
+    boxes: list[Box],
+    idx: int,
+    # (width, height)
+    ratio: tuple[int, int] = (9, 16),
+) -> int:
+    rect, detection_boxes = calculate_crop(image, boxes, ratio)
     boxes_to_draw = [rect, *detection_boxes]
 
     drawn_image = draw(

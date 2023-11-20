@@ -1,6 +1,6 @@
 import json
 import cv2
-from crop import WALLPAPER_DIR, VERT_WALLPAPER_DIR, preview_image, detect
+from crop import WALLPAPER_DIR, preview_image, detect
 
 
 def draw(image, boxes, color=(0, 255, 0), font_scale=0.3, thickness=1):
@@ -39,22 +39,12 @@ if __name__ == "__main__":
         images_to_skip = set()
 
     # skip images if already cropped
-    vertical_wallpapers = set(f.name for f in VERT_WALLPAPER_DIR.iterdir())
     image_paths = [
         img for img in WALLPAPER_DIR.iterdir() if img.name not in images_to_skip
     ]
-    # skip existing vertical wallpapers
-    # image_paths = [img for img in image_paths if img.name not in vertical_wallpapers]
 
     # uncomment to test specific images
-    # image_paths = (
-    #     WALLPAPER_DIR / f
-    #     for f in [
-    #         "wallhaven-l8dj1p.jpg",
-    #     ]
-    # )
-
-    image_paths = sorted(image_paths)
+    # image_paths = sorted(Path("in").iterdir())
 
     print("Start inferencing. Press `q` to cancel. Press  `-` to go back.")
     idx = 0
@@ -80,7 +70,8 @@ if __name__ == "__main__":
         print(path, "x".join(image.shape[:2:-1]))
 
         # display the images
-        idx = preview_image(image, boxes, idx)
+        idx = preview_image(image, boxes, idx, ratio=(1440, 2560))
+        # idx = preview_image(image, boxes, idx, ratio=(2256, 1506))
 
     # write skipped images to file
     json.dump(sorted(images_to_skip), open("skip.json", "w"))

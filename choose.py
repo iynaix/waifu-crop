@@ -4,8 +4,10 @@ from collections import defaultdict
 from crop import (
     Box,
     BoxIntersections,
+    AspectRatio,
     VERT_WALLPAPER_DIR,
     detect,
+    get_largest_crop,
 )
 
 INPUT_DIR = Path("in")
@@ -62,96 +64,121 @@ def calculate_crops(
     image,
     boxes: list[Box],
     # (width, height)
-    ratio: tuple[int, int] = (9, 16),
+    ratio: AspectRatio = (9, 16),
 ) -> tuple[Box, list[Box]]:
     height, width = image.shape[:2]
-    if ratio[1] > ratio[0]:
-        target_width = int(height / ratio[1] * ratio[0])
-    else:
-        target_width = int(width / ratio[0] * ratio[1])
+    (target_width, target_height), direction = get_largest_crop((width, height), ratio)
 
-    def clamp(xmin) -> tuple[int, int]:
-        xmin = int(xmin)
-        xmax = xmin + target_width
+    def clamp(val, direction):
+        min_ = int(val)
+        empty = {
+            "xmin": 0,
+            "xmax": 0,
+            "ymin": 0,
+            "ymax": 0,
+            "confidence": 1,
+        }
 
         # check if out of bounds and constrain it
-        if xmin < 0:
-            return 0, target_width
-        elif xmax > width:
-            return width - target_width, width
+        if direction == "x":
+            max_ = min_ + target_width
+            if min_ < 0:
+                return {**empty, "xmax": target_width, "ymax": height}
+            elif max_ > width:
+                return {
+                    **empty,
+                    "xmin": width - target_width,
+                    "xmax": width,
+                    "ymax": height,
+                }
+            else:
+                return {**empty, "xmin": min_, "xmax": max_, "ymax": height}
         else:
-            return xmin, xmax
+            max_ = min_ + target_height
+            if min_ < 0:
+                return {**empty, "ymax": target_height, "xmax": width}
+            elif max_ > width:
+                return {
+                    **empty,
+                    "ymin": height - target_height,
+                    "ymax": width,
+                    "xmax": width,
+                }
+            else:
+                return {**empty, "ymin": min_, "ymax": max_, "xmax": width}
 
     if len(boxes) == 1:
         box = boxes[0]
-        box_mid_x = (box["xmin"] + box["xmax"]) / 2
-        target_x = box_mid_x - target_width / 2
+        box_mid = (box[f"{direction}min"] + box[f"{direction}max"]) / 2
+        target = (
+            box_mid - target_width / 2
+            if direction == "x"
+            else box_mid - target_height / 2
+        )
 
-        xmin, xmax = clamp(target_x)
+        box_new = {
+            "xmin": 0,
+            "xmax": 0,
+            "ymin": 0,
+            "ymax": 0,
+            "confidence": box["confidence"],
+            **clamp(target, direction),
+        }
 
         return (
-            {
-                "xmin": xmin,
-                "xmax": xmax,
-                "ymin": 0,
-                "ymax": height,
-                "confidence": box["confidence"],
-            },
+            box_new,
             boxes,
         )
 
     else:
-        # sort boxes by xmin
-        boxes.sort(key=lambda box: box["xmin"])
+        min_ = "xmin" if direction == "x" else "ymin"
+        max_ = "xmax" if direction == "x" else "ymax"
+
+        # sort boxes by min_
+        boxes.sort(key=lambda box: box[min_])
 
         # (area, xmin of box)
         boxes_info: list[BoxIntersections] = []
 
-        for rect_left in range(width - target_width):
-            rect_right = rect_left + target_width
+        for rect_start in range(
+            width - target_width if direction == "x" else height - target_height
+        ):
+            rect_end = rect_start + (
+                target_width if direction == "x" else target_height
+            )
 
             # check number of boxes in decimal within enclosed within larger rectangle
             boxes_area = 0
             for box in boxes:
                 # no intersection, we overshot the final box
-                if box["xmin"] > rect_right:
+                if box[min_] > rect_end:
                     break
 
                 # no intersection
-                elif box["xmax"] < rect_left:
+                elif box[max_] < rect_start:
                     continue
 
                 # full intersection
-                elif box["xmin"] >= rect_left and box["xmax"] <= rect_right:
+                elif box[min_] >= rect_start and box[max_] <= rect_end:
                     boxes_area += (box["xmax"] - box["xmin"]) * (
                         box["ymax"] - box["ymin"]
                     )
-                    boxes_info.append(BoxIntersections(boxes_area, rect_left))
+                    boxes_info.append(BoxIntersections(boxes_area, rect_start))
                     continue
 
         boxes_info.sort()
-
         # group the boxes by area
         boxes_by_area = defaultdict(list)
         for box_info in boxes_info:
-            boxes_by_area[box_info.area].append(box_info.x)
+            boxes_by_area[box_info.area].append(getattr(box_info, direction))
 
         # get midpoints for each face
-        rects = []
-        for _, xs in boxes_by_area.items():
-            xmin, xmax = clamp(xs[len(xs) // 2])
+        rects = [
+            clamp(starts[len(starts) // 2], direction)
+            for _, starts in boxes_by_area.items()
+        ]
 
-            rects.append(
-                {
-                    "xmin": xmin,
-                    "xmax": xmax,
-                    "ymin": 0,
-                    "ymax": height,
-                    "confidence": boxes[0]["confidence"],
-                }
-            )
-
-        return sorted(rects, key=lambda r: r["xmin"])
+        return sorted(rects, key=lambda r: r[min_])
 
 
 if __name__ == "__main__":
@@ -181,7 +208,7 @@ if __name__ == "__main__":
         print(path, "x".join(image.shape[:2:-1]))
 
         # display the images
-        rects = calculate_crops(image, boxes)
+        rects = calculate_crops(image, boxes, ratio=(3, 2))
         drawn_image = draw(image, rects, thickness=3)
 
         w, h = image.shape[:2][::-1]
