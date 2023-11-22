@@ -1,5 +1,5 @@
 import cv2
-import subprocess
+import json
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
@@ -8,6 +8,7 @@ import anime_face_detector
 
 
 WALLPAPER_DIR = Path("~/Pictures/Wallpapers").expanduser()
+
 VERT_WALLPAPER_DIR = Path("~/Pictures/WallpapersVertical").expanduser()
 FRAMEWORK_WALLPAPER_DIR = Path("~/Pictures/WallpapersFramework").expanduser()
 DETECTOR = anime_face_detector.create_detector(
@@ -39,6 +40,44 @@ class BoxIntersections(NamedTuple):
     start: int
 
 
+def box_to_geometry(box: Box) -> str:
+    x = box["xmin"]
+    y = box["ymin"]
+    w = box["xmax"] - box["xmin"]
+    h = box["ymax"] - box["ymin"]
+
+    return f"{w}x{h}+{x}+{y}"
+
+
+class WallpaperInfo:
+    def __init__(self):
+        self.path = WALLPAPER_DIR / "wallpapers.json"
+        try:
+            loaded = json.load(open(self.path))
+        except FileNotFoundError:
+            loaded = {}
+
+        # cleanup files that have been deleted
+        self.data = {}
+        for img in WALLPAPER_DIR.iterdir():
+            fname = img.name
+
+            if fname in loaded:
+                self.data[fname] = loaded[fname]
+
+    def __getitem__(self, key):
+        return self.data[key]
+
+    def __setitem__(self, key, value):
+        self.data[key] = value
+
+    def __contains__(self, key):
+        return key in self.data
+
+    def save(self):
+        json.dump(self.data, open(self.path, "w"), indent=2)
+
+
 @dataclass
 class Cropper:
     image: Any
@@ -53,8 +92,11 @@ class Cropper:
     ):
         self.image = image
         self.faces = faces
-        self.aspect_ratio = aspect_ratio
         self.height, self.width = self.image.shape[:2]
+        self.set_aspect_ratio(aspect_ratio)
+
+    def set_aspect_ratio(self, aspect_ratio: AspectRatio):
+        self.aspect_ratio = aspect_ratio
         (self.target_width, self.target_height), self.direction = self.crop_rect()
 
     def crop_rect(self) -> tuple[Dimensions, str]:
@@ -102,12 +144,12 @@ class Cropper:
             max_ = min_ + self.target_height
             if min_ < 0:
                 return {**empty, "ymax": self.target_height, "xmax": self.width}
-            elif max_ > self.width:
+            elif max_ > self.height:
                 return {
                     **empty,
                     "ymin": self.height - self.target_height,
-                    "ymax": self.width,
                     "xmax": self.width,
+                    "ymax": self.height,
                 }
             else:
                 return {**empty, "ymin": min_, "ymax": max_, "xmax": self.width}
@@ -262,17 +304,22 @@ class Cropper:
             key=lambda r: r[min_],
         )
 
-    def write_cropped_image(self, path: str, rect: Box = None):
-        if rect is None:
-            rect, _ = self.crop()
+    def geometries(self):
+        ret = {"faces": len(self.faces)}
 
-        cropped = self.image[
-            rect["ymin"] : rect["ymax"], rect["xmin"] : rect["xmax"]  # noqa: E203
-        ]
-        cv2.imwrite(path, cropped)
+        for ratio in [
+            VERTICAL_ASPECT_RATIO,
+            FRAMEWORK_ASPECT_RATIO,
+            ULTRAWIDE_ASPECT_RATIO,
+            HD_ASPECT_RATIO,
+        ]:
+            ratio_str = f"{ratio[0]}x{ratio[1]}"
 
-        # optimize png
-        subprocess.run(["oxipng", "--opt", "max", path])
+            self.set_aspect_ratio(ratio)
+            box, _ = self.crop()
+            ret[ratio_str] = box_to_geometry(box)
+
+        return ret
 
 
 def draw(image, boxes, color=(0, 255, 0), thickness=1):

@@ -4,9 +4,9 @@ import subprocess
 from PIL import Image
 from utils import (
     Cropper,
-    FRAMEWORK_WALLPAPER_DIR,
-    VERT_WALLPAPER_DIR,
+    WallpaperInfo,
     WALLPAPER_DIR,
+    VERTICAL_ASPECT_RATIO,
     detect,
 )
 from pathlib import Path
@@ -17,8 +17,25 @@ TARGET_WIDTH = 3440
 TARGET_HEIGHT = 1504  # framework height
 
 
+def crop_from_geometry(geometry: str, input: str, output: str) -> str:
+    # split geometry into width, height, x, y
+    w, h, x, y = [
+        int(n) for n in geometry.replace("x", " ").replace("+", " ").split(" ")
+    ]
+
+    xmax = x + w
+    ymax = y + h
+
+    img = cv2.imread(input)
+    cv2.imwrite(output, img[y:ymax, x:xmax])
+
+
 if __name__ == "__main__":
-    for p in sorted(INPUT_DIR.iterdir()):
+    # create vertical wallpapers preview output directory
+    PREVIEW_DIR = INPUT_DIR / "preview"
+    IMAGE_DATA = WallpaperInfo()
+
+    for p in sorted(d for d in INPUT_DIR.iterdir() if d.is_file()):
         img = Image.open(p)
         width, height = img.size
 
@@ -57,22 +74,22 @@ if __name__ == "__main__":
         if needs_upscale or p.suffix == ".png":
             subprocess.run(["oxipng", "--opt", "max", out_path])
 
-        # crop faces
-        if boxes := detect(
-            str(out_path),
-            face_score_threshold=0.5,
-        ):
+        # crop faces and write data
+        geometries = None
+        if boxes := detect(str(out_path), face_score_threshold=0.5):
             image = cv2.imread(str(out_path))
+            geometries = Cropper(image, boxes).geometries()
 
-            # write for vertical monitor
-            Cropper(image, boxes, aspect_ratio=(1440, 2560)).write_cropped_image(
-                str(VERT_WALLPAPER_DIR / out_path.name)
-            )
+            # output vertical image for preview
+            if len(boxes) > 1:
+                PREVIEW_DIR.mkdir(exist_ok=True)
 
-            # write for framework
-            Cropper(image, boxes, aspect_ratio=(2256, 1504)).write_cropped_image(
-                str(FRAMEWORK_WALLPAPER_DIR / out_path.name)
-            )
-        else:
-            # copy for framework
-            shutil.copy(p, FRAMEWORK_WALLPAPER_DIR / p.name)
+                vertical_str = f"{VERTICAL_ASPECT_RATIO[0]}x{VERTICAL_ASPECT_RATIO[1]}"
+                crop_from_geometry(
+                    geometries[vertical_str],
+                    str(out_path),
+                    str(PREVIEW_DIR / p.name),
+                )
+
+        IMAGE_DATA[out_path.name] = geometries
+        IMAGE_DATA.save()

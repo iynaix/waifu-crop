@@ -2,14 +2,14 @@ import cv2
 from pathlib import Path
 from utils import (
     Cropper,
-    FRAMEWORK_WALLPAPER_DIR,
-    VERT_WALLPAPER_DIR,
-    detect,
     VERTICAL_ASPECT_RATIO,
-    FRAMEWORK_ASPECT_RATIO,
+    detect,
+    WALLPAPER_DIR,
+    WallpaperInfo,
+    box_to_geometry,
 )
 
-INPUT_DIR = Path("in")
+INPUT_DIR = Path("in/preview")
 BOX_COLORS = [
     (255, 0, 0),
     (0, 255, 0),
@@ -19,7 +19,8 @@ BOX_COLORS = [
     (255, 0, 255),
     (255, 255, 255),
 ]
-WRITE_VERTICAL = False
+
+VALID_KEYS = "1234567890abcdefghijklmqrstuvwxyz"
 
 
 def draw(image, boxes, font_scale=3, thickness=1):
@@ -38,7 +39,7 @@ def draw(image, boxes, font_scale=3, thickness=1):
         color = BOX_COLORS[idx % len(BOX_COLORS)]
 
         xmin, ymin, xmax, ymax = box["xmin"], box["ymin"], box["xmax"], box["ymax"]
-        label = str(idx + 1)
+        label = VALID_KEYS[idx].upper()
         ret, baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, 5)
         cv2.rectangle(image, (xmin, ymin), (xmax, ymax), color, thickness)
         cv2.rectangle(
@@ -60,9 +61,11 @@ def draw(image, boxes, font_scale=3, thickness=1):
     return image
 
 
+# TODO: allow selecting for other aspect ratios?
 if __name__ == "__main__":
     # skip images if already cropped
     image_paths = sorted(INPUT_DIR.iterdir())
+    IMAGE_DATA = WallpaperInfo()
 
     print("Start inferencing. Press `q` to cancel. Press  `-` to go back.")
     idx = 0
@@ -73,26 +76,24 @@ if __name__ == "__main__":
         path = image_paths[idx]
 
         # use defaults
-        image = cv2.imread(str(path))
-        boxes = detect(
-            str(path),
-            face_score_threshold=0.5,
-        )
+        fname = path.name
+        wallpaper = str(WALLPAPER_DIR / fname)
+
+        image = cv2.imread(wallpaper)
+        faces = detect(wallpaper, face_score_threshold=0.5)
 
         # skip if no boxes
-        if not boxes:
+        if not faces:
             idx += 1
             continue
 
-        print(path, "x".join(image.shape[:2:-1]))
-
         # display the images
-        aspect_ratio = (
-            VERTICAL_ASPECT_RATIO if WRITE_VERTICAL else FRAMEWORK_ASPECT_RATIO
+        cropper = Cropper(
+            image,
+            faces,
+            # use aspect ratio from the input image?
+            aspect_ratio=VERTICAL_ASPECT_RATIO,
         )
-        OUTPUT_DIR = VERT_WALLPAPER_DIR if WRITE_VERTICAL else FRAMEWORK_WALLPAPER_DIR
-
-        cropper = Cropper(image, boxes, aspect_ratio=aspect_ratio)
         rects = cropper.crop_candidates()
         drawn_image = draw(image, rects, thickness=3)
 
@@ -113,10 +114,17 @@ if __name__ == "__main__":
             idx = idx - 1
 
         # crop the image on index selection
-        elif key in [ord(str(n)) for n in range(1, len(rects) + 1)]:
-            cropper.write_cropped_image(
-                str(OUTPUT_DIR / path.name), rect=rects[int(chr(key)) - 1]
-            )
+        elif key in [ord(c) for c in VALID_KEYS]:
+            sel = VALID_KEYS.index(chr(key))
+            print("sel", sel)
+            rect = rects[sel]
+
+            # update the data
+            ratio_str = f"{VERTICAL_ASPECT_RATIO[0]}x{VERTICAL_ASPECT_RATIO[1]}"
+            IMAGE_DATA[fname][ratio_str] = box_to_geometry(rect)
+
+            IMAGE_DATA.save()
+
             idx = idx + 1
         else:
             idx = idx + 1
