@@ -305,7 +305,9 @@ class Cropper:
         )
 
     def geometries(self):
-        ret = {"faces": len(self.faces)}
+        ret = {
+            "faces": [(f["xmin"], f["xmin"], f["ymin"], f["ymax"]) for f in self.faces]
+        }
 
         for ratio in [
             VERTICAL_ASPECT_RATIO,

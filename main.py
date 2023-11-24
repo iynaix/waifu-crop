@@ -76,12 +76,12 @@ if __name__ == "__main__":
 
         # crop faces and write data
         geometries = None
-        if boxes := detect(str(out_path), face_score_threshold=0.5):
+        if faces := detect(str(out_path), face_score_threshold=0.5):
             image = cv2.imread(str(out_path))
-            geometries = Cropper(image, boxes).geometries()
+            geometries = Cropper(image, faces).geometries()
 
             # output vertical image for preview
-            if len(boxes) > 1:
+            if len(faces) > 1:
                 PREVIEW_DIR.mkdir(exist_ok=True)
 
                 vertical_str = f"{VERTICAL_ASPECT_RATIO[0]}x{VERTICAL_ASPECT_RATIO[1]}"

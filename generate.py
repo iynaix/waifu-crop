@@ -31,7 +31,6 @@ if __name__ == "__main__":
 
     IMAGE_DATA = WallpaperInfo()
 
-    # for img in [WALLPAPER_DIR / "103.png"]:
     for img in sorted(WALLPAPER_DIR.iterdir()):
         fname = img.name
 
