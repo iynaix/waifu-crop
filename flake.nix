@@ -3,6 +3,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/e32eb6818377a7d3ed2d0815418e6cb8427819e7";
     systems.url = "github:nix-systems/default";
     devenv.url = "github:cachix/devenv";
+    fenix.url = "github:nix-community/fenix";
   };
 
   outputs = {
@@ -44,6 +45,8 @@
               ];
 
               dotenv.disableHint = true;
+
+              # python
               languages.python = {
                 enable = true;
                 package = pkgs.python3.withPackages (ps:
@@ -67,6 +70,12 @@
                     black
                   ]);
                 venv.enable = true;
+              };
+
+              # rust
+              languages.rust = {
+                enable = true;
+                channel = "stable";
               };
             }
           ];
