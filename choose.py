@@ -61,8 +61,10 @@ def draw(image, faces, font_scale=3, thickness=1):
     return image
 
 
-# TODO: allow selecting for other aspect ratios?
 if __name__ == "__main__":
+    # TODO: allow selecting for other aspect ratios?
+    ratio = VERTICAL_ASPECT_RATIO
+
     # skip images if already cropped
     image_paths = sorted(INPUT_DIR.iterdir())
     IMAGE_DATA = WallpaperInfo()
@@ -92,7 +94,7 @@ if __name__ == "__main__":
             image,
             faces,
             # use aspect ratio from the input image?
-            aspect_ratio=VERTICAL_ASPECT_RATIO,
+            aspect_ratio=ratio,
         )
         rects = cropper.crop_candidates()
         drawn_image = draw(image, rects, thickness=3)
@@ -120,7 +122,7 @@ if __name__ == "__main__":
             rect = rects[sel]
 
             # update the data
-            ratio_str = f"{VERTICAL_ASPECT_RATIO[0]}x{VERTICAL_ASPECT_RATIO[1]}"
+            ratio_str = f"{ratio[0]}x{ratio[1]}"
             IMAGE_DATA[fname][ratio_str] = box_to_geometry(rect)
 
             IMAGE_DATA.save()
