@@ -1,5 +1,6 @@
 use core::fmt;
 use image::image_dimensions;
+use itertools::Itertools;
 use serde::Deserialize;
 use std::{collections::HashMap, fs::File, path::PathBuf};
 
@@ -65,6 +66,11 @@ impl Face {
 
 type Rect = Face;
 
+struct FaceInfo {
+    area: u32,
+    start: u32,
+}
+
 type WallpapersInfo = HashMap<String, Option<WallInfo>>;
 
 #[derive(Debug, Deserialize)]
@@ -88,7 +94,7 @@ pub struct Cropper {
     pub aspect_ratio: AspectRatio,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Direction {
     X,
     Y,
@@ -245,11 +251,6 @@ impl Cropper {
         if self.faces.len() == 1 {
             self.crop_single_face(direction, target_width, target_height)
         } else {
-            struct FaceInfo {
-                area: u32,
-                start: u32,
-            }
-
             self.faces.sort_by_key(|face| match direction {
                 Direction::X => face.xmin,
                 Direction::Y => face.ymin,
@@ -268,6 +269,7 @@ impl Cropper {
                 let mut faces_area = 0;
 
                 for face in self.faces.iter() {
+                    // check number of faces in decimal within enclosed within larger rectangle
                     let (min_, max_) = match direction {
                         Direction::X => (face.xmin, face.xmax),
                         Direction::Y => (face.ymin, face.ymax),
@@ -328,6 +330,85 @@ impl Cropper {
                 target_width,
                 target_height,
             )
+        }
+    }
+
+    pub fn crop_candidates(&mut self, aspect_ratio: AspectRatio) -> Vec<Rect> {
+        let (target_width, target_height, direction) = self.crop_rect(aspect_ratio);
+
+        if self.width == target_width && self.height == target_height {
+            return vec![Face {
+                xmax: self.width,
+                ymax: self.height,
+                ..Face::default()
+            }];
+        }
+
+        if self.faces.len() == 1 {
+            vec![self.crop_single_face(direction, target_width, target_height)]
+        } else {
+            self.faces.sort_by_key(|face| match direction {
+                Direction::X => face.xmin,
+                Direction::Y => face.ymin,
+            });
+
+            let mut faces_info: Vec<FaceInfo> = vec![];
+            let (rect_max, rect_len) = match direction {
+                Direction::X => (self.width - target_width, target_width),
+                Direction::Y => (self.height - target_height, target_height),
+            };
+
+            for rect_start in 0..rect_max {
+                // check number of faces in decimal within enclosed within larger rectangle
+                let rect_end = rect_start + rect_len;
+
+                for face in self.faces.iter() {
+                    let (min_, max_) = match direction {
+                        Direction::X => (face.xmin, face.xmax),
+                        Direction::Y => (face.ymin, face.ymax),
+                    };
+
+                    // no intersection, we overshot the final box
+                    if min_ > rect_end {
+                        break;
+                    }
+                    // no intersection
+                    else if max_ < rect_start {
+                        continue;
+                    }
+                    // full intersection
+                    else if min_ >= rect_start && max_ <= rect_end {
+                        faces_info.push(FaceInfo {
+                            area: face.area(),
+                            start: rect_start,
+                        });
+                        continue;
+                    }
+                }
+            }
+
+            faces_info.sort_by_key(|face_info| (face_info.area, face_info.start));
+
+            // group faces by area
+            let faces_by_area: HashMap<_, Vec<_>> =
+                faces_info
+                    .iter()
+                    .fold(HashMap::new(), |mut acc, face_info| {
+                        acc.entry(face_info.area).or_default().push(face_info.start);
+                        acc
+                    });
+
+            faces_by_area
+                .values()
+                .map(|faces| {
+                    let mid = faces[faces.len() / 2];
+                    self.clamp(mid as f32, direction.clone(), target_width, target_height)
+                })
+                .sorted_by_key(|face| match direction {
+                    Direction::X => face.xmin,
+                    Direction::Y => face.ymin,
+                })
+                .collect()
         }
     }
 }
