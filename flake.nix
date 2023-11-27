@@ -34,14 +34,24 @@
           inherit inputs pkgs;
           modules = [
             {
-              env = {
-                LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib";
+              env = with pkgs; {
+                LD_LIBRARY_PATH = "${stdenv.cc.cc.lib}/lib ";
               };
 
               # https://devenv.sh/reference/options/
               packages = with pkgs; [
                 oxipng
                 realesrgan-ncnn-vulkan
+                # for iced-rs
+                xorg.libX11
+                xorg.libXcursor
+                xorg.libXi
+                xorg.libXrandr
+                libGL
+                pkg-config
+                freetype
+                freetype.dev
+                expat
               ];
 
               dotenv.disableHint = true;

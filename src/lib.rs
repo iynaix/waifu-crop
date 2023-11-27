@@ -71,7 +71,7 @@ struct FaceInfo {
     start: u32,
 }
 
-type WallpapersInfo = HashMap<String, Option<WallInfo>>;
+type WallpapersInfo = HashMap<String, WallInfo>;
 
 #[derive(Debug, Deserialize)]
 pub struct WallInfo {
