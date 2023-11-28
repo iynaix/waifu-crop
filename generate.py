@@ -40,6 +40,6 @@ if __name__ == "__main__":
         print(fname)
         image = cv2.imread(str(img))
         faces = detect(str(img), face_score_threshold=0.5)
-        IMAGE_DATA[fname] = Cropper(image, faces).geometries() if faces else None
+        IMAGE_DATA[fname] = Cropper(image, faces).geometries()
 
     IMAGE_DATA.save()
