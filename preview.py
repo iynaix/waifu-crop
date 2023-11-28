@@ -1,7 +1,6 @@
-import json
 import cv2
 from utils import (
-    Box,
+    Face,
     WALLPAPER_DIR,
     detect,
     Cropper,
@@ -13,17 +12,16 @@ from utils import (
 
 def preview_image(
     image,
-    boxes: list[Box],
+    faces: list[Face],
     idx: int,
     # (width, height)
     ratio: tuple[int, int] = (9, 16),
 ) -> int:
-    rect, detection_boxes = Cropper(image, boxes, ratio).crop()
-    boxes_to_draw = [rect, *detection_boxes]
+    rect = Cropper(image, faces, ratio).crop()
 
     drawn_image = draw(
         image,
-        boxes_to_draw,
+        [rect, *faces],
         # BGR
         color=(0, 0, 255),
         thickness=3,
@@ -49,15 +47,8 @@ def preview_image(
 
 
 if __name__ == "__main__":
-    try:
-        images_to_skip = set(json.load(open("skip.json")))
-    except FileNotFoundError:
-        images_to_skip = set()
-
     # skip images if already cropped
-    image_paths = [
-        img for img in WALLPAPER_DIR.iterdir() if img.name not in images_to_skip
-    ]
+    image_paths = [img for img in WALLPAPER_DIR.iterdir()]
 
     # uncomment to test specific images
     # image_paths = sorted(Path("in").iterdir())
@@ -72,25 +63,21 @@ if __name__ == "__main__":
 
         # use defaults
         image = cv2.imread(str(path))
-        boxes = detect(
+        faces = detect(
             str(path),
             face_score_threshold=0.5,
         )
 
-        # skip if no boxes
-        if not boxes:
-            images_to_skip.add(path.name)
+        # skip if no faces
+        if not faces:
             idx += 1
             continue
 
         # display the images
         idx = preview_image(
             image,
-            boxes,
+            faces,
             idx,
             ratio=VERTICAL_ASPECT_RATIO,
             # ratio=FRAMEWORK_ASPECT_RATIO,
         )
-
-    # write skipped images to file
-    json.dump(sorted(images_to_skip), open("skip.json", "w"))

@@ -23,22 +23,22 @@ BOX_COLORS = [
 VALID_KEYS = "1234567890abcdefghijklmqrstuvwxyz"
 
 
-def draw(image, boxes, font_scale=3, thickness=1):
+def draw(image, faces, font_scale=3, thickness=1):
     """
     Draw boxes on the image. This function does not modify the image in-place.
     Args:
         image: A numpy BGR image.
-        boxes: A list of dicts of {xmin, xmax, ymin, ymax, confidence}
-        font_scale: Font size for the confidence level display.
+        boxes: A list of dicts of {xmin, xmax, ymin, ymax}
+        font_scale: Font size for the image number display.
         thickness: Thickness of the line.
     Returns:
         A drawn image.
     """
     image = image.copy()
-    for idx, box in enumerate(boxes):
+    for idx, face in enumerate(faces):
         color = BOX_COLORS[idx % len(BOX_COLORS)]
 
-        xmin, ymin, xmax, ymax = box["xmin"], box["ymin"], box["xmax"], box["ymax"]
+        xmin, ymin, xmax, ymax = face["xmin"], face["ymin"], face["xmax"], face["ymax"]
         label = VALID_KEYS[idx].upper()
         ret, baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, 5)
         cv2.rectangle(image, (xmin, ymin), (xmax, ymax), color, thickness)
@@ -82,7 +82,7 @@ if __name__ == "__main__":
         image = cv2.imread(wallpaper)
         faces = detect(wallpaper, face_score_threshold=0.5)
 
-        # skip if no boxes
+        # skip if no faces
         if not faces:
             idx += 1
             continue

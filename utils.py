@@ -27,24 +27,23 @@ VERTICAL_ASPECT_RATIO: AspectRatio = (1440, 2560)
 FRAMEWORK_ASPECT_RATIO: AspectRatio = (2256, 1504)
 
 
-class Box(TypedDict):
+class Face(TypedDict):
     xmin: int
     ymin: int
     xmax: int
     ymax: int
-    confidence: float
 
 
-class BoxIntersections(NamedTuple):
+class FaceIntersections(NamedTuple):
     area: int
     start: int
 
 
-def box_to_geometry(box: Box) -> str:
-    x = box["xmin"]
-    y = box["ymin"]
-    w = box["xmax"] - box["xmin"]
-    h = box["ymax"] - box["ymin"]
+def box_to_geometry(face: Face) -> str:
+    x = face["xmin"]
+    y = face["ymin"]
+    w = face["xmax"] - face["xmin"]
+    h = face["ymax"] - face["ymin"]
 
     return f"{w}x{h}+{x}+{y}"
 
@@ -81,13 +80,13 @@ class WallpaperInfo:
 @dataclass
 class Cropper:
     image: Any
-    faces: list[Box]
+    faces: list[Face]
     aspect_ratio: AspectRatio = (9, 16)
 
     def __init__(
         self,
         image,
-        faces: list[Box],
+        faces: list[Face],
         aspect_ratio: AspectRatio = (9, 16),
     ):
         self.image = image
@@ -123,7 +122,6 @@ class Cropper:
             "xmax": 0,
             "ymin": 0,
             "ymax": 0,
-            "confidence": 1,
         }
 
         # check if out of bounds and constrain it
@@ -154,16 +152,16 @@ class Cropper:
             else:
                 return {**empty, "ymin": min_, "ymax": max_, "xmax": self.width}
 
-    def crop_single_box(self) -> tuple[Box, list[Box]]:
-        box = self.faces[0]
-        box_mid = (box[f"{self.direction}min"] + box[f"{self.direction}max"]) / 2
+    def crop_single_face(self) -> tuple[Face, list[Face]]:
+        face = self.faces[0]
+        face_mid = (face[f"{self.direction}min"] + face[f"{self.direction}max"]) / 2
         target = (
-            box_mid - self.target_width / 2
+            face_mid - self.target_width / 2
             if self.direction == "x"
-            else box_mid - self.target_height / 2
+            else face_mid - self.target_height / 2
         )
 
-        return (self.clamp(target), self.faces)
+        return self.clamp(target)
 
     def iter_image_slices(self):
         for rect_start in range(
@@ -176,121 +174,132 @@ class Cropper:
             )
             yield rect_start, rect_end
 
-    def crop(self) -> tuple[Box, list[Box]]:
+    def crop(self) -> Face:
         # crop area is the entire image
         if self.width == self.target_width and self.height == self.target_height:
-            return (
-                {
-                    "xmin": 0,
-                    "xmax": self.width,
+            return {
+                "xmin": 0,
+                "xmax": self.width,
+                "ymin": 0,
+                "ymax": self.height,
+            }
+
+        if not self.faces:
+            # return the center of the image
+            if self.direction == "x":
+                xmin = (self.width - self.target_width) // 2
+                return {
+                    "xmin": xmin,
+                    "xmax": xmin + self.target_width,
                     "ymin": 0,
                     "ymax": self.height,
-                    "confidence": 1,
-                },
-                self.faces,
-            )
+                }
+            else:
+                ymin = (self.height - self.target_height) // 2
+                return {
+                    "xmin": 0,
+                    "xmax": self.width,
+                    "ymin": ymin,
+                    "ymax": ymin + self.target_height,
+                }
 
         if len(self.faces) == 1:
-            return self.crop_single_box()
+            return self.crop_single_face()
 
         min_ = "xmin" if self.direction == "x" else "ymin"
         max_ = "xmax" if self.direction == "x" else "ymax"
 
-        # sort boxes by min_
-        faces = sorted(self.faces, key=lambda box: box[min_])
+        # sort faces by min_
+        faces = sorted(self.faces, key=lambda f: f[min_])
 
         max_faces = 0
-        # (area, min_ of box)
-        faces_info: list[BoxIntersections] = []
+        # (area, min_ of face)
+        faces_info: list[FaceIntersections] = []
 
         for rect_start, rect_end in self.iter_image_slices():
-            # check number of boxes in decimal within enclosed within larger rectangle
+            # check number of faces in decimal within enclosed within larger rectangle
             num_faces = 0
             faces_area = 0
-            for box in faces:
-                # no intersection, we overshot the final box
-                if box[min_] > rect_end:
+            for face in faces:
+                # no intersection, we overshot the final face
+                if face[min_] > rect_end:
                     break
 
                 # no intersection
-                elif box[max_] < rect_start:
+                elif face[max_] < rect_start:
                     continue
 
                 # full intersection
-                elif box[min_] >= rect_start and box[max_] <= rect_end:
+                elif face[min_] >= rect_start and face[max_] <= rect_end:
                     num_faces += 1
-                    faces_area += (box["xmax"] - box["xmin"]) * (
-                        box["ymax"] - box["ymin"]
+                    faces_area += (face["xmax"] - face["xmin"]) * (
+                        face["ymax"] - face["ymin"]
                     )
                     continue
 
                 # partial intersection
-                if box[min_] <= rect_end and box[max_] > rect_end:
-                    num_faces += (rect_end - box[min_]) / (box[max_] - box[min_])
+                if face[min_] <= rect_end and face[max_] > rect_end:
+                    num_faces += (rect_end - face[min_]) / (face[max_] - face[min_])
                     if self.direction == "x":
-                        faces_area += (rect_end - box[min_]) * (
-                            box["ymax"] - box["ymin"]
+                        faces_area += (rect_end - face[min_]) * (
+                            face["ymax"] - face["ymin"]
                         )
                     else:
-                        faces_area += (rect_end - box[min_]) * (
-                            box["xmax"] - box["xmin"]
+                        faces_area += (rect_end - face[min_]) * (
+                            face["xmax"] - face["xmin"]
                         )
                     continue
 
-            # update max boxes
+            # update max faces
             if num_faces > 0:
                 if num_faces > max_faces:
                     max_faces = num_faces
-                    faces_info = [BoxIntersections(faces_area, rect_start)]
+                    faces_info = [FaceIntersections(faces_area, rect_start)]
                 elif num_faces == max_faces:
-                    faces_info.append(BoxIntersections(faces_area, rect_start))
+                    faces_info.append(FaceIntersections(faces_area, rect_start))
 
         faces_info.sort()
         # use the match with the maximum area of face coverage
         max_face_area = faces_info[-1].area
         faces_info = [face for face in faces_info if face.area == max_face_area]
 
-        return (
-            # get the midpoint of matches to center the box
-            self.clamp(faces_info[len(faces_info) // 2].start),
-            faces,
-        )
+        # get the midpoint of matches to center the face
+        self.clamp(faces_info[len(faces_info) // 2].start),
 
-    def crop_candidates(self) -> list[Box]:
+    def crop_candidates(self) -> list[Face]:
         if len(self.faces) == 1:
-            return [self.crop_single_box()[0]]
+            return [self.crop_single_face()]
 
         min_ = "xmin" if self.direction == "x" else "ymin"
         max_ = "xmax" if self.direction == "x" else "ymax"
 
-        # sort boxes by min_
-        faces = sorted(self.faces, key=lambda box: box[min_])
+        # sort faces by min_
+        faces = sorted(self.faces, key=lambda f: f[min_])
 
-        # (area, xmin of box)
-        faces_info: list[BoxIntersections] = []
+        # (area, xmin of face)
+        faces_info: list[FaceIntersections] = []
 
         for rect_start, rect_end in self.iter_image_slices():
-            # check number of boxes in decimal within enclosed within larger rectangle
-            faces_area = 0
-            for box in faces:
-                # no intersection, we overshot the final box
-                if box[min_] > rect_end:
+            # check number of faces in decimal within enclosed within larger rectangle
+            for face in faces:
+                # no intersection, we overshot the final face
+                if face[min_] > rect_end:
                     break
 
                 # no intersection
-                elif box[max_] < rect_start:
+                elif face[max_] < rect_start:
                     continue
 
                 # full intersection
-                elif box[min_] >= rect_start and box[max_] <= rect_end:
-                    faces_area += (box["xmax"] - box["xmin"]) * (
-                        box["ymax"] - box["ymin"]
+                elif face[min_] >= rect_start and face[max_] <= rect_end:
+                    faces_area = (face["xmax"] - face["xmin"]) * (
+                        face["ymax"] - face["ymin"]
                     )
-                    faces_info.append(BoxIntersections(faces_area, rect_start))
+                    faces_info.append(FaceIntersections(faces_area, rect_start))
                     continue
 
         faces_info.sort()
-        # group the boxes by area
+        # group the faces by area
         faces_by_area = defaultdict(list)
         for face_info in faces_info:
             faces_by_area[face_info.area].append(face_info.start)
@@ -318,26 +327,26 @@ class Cropper:
             ratio_str = f"{ratio[0]}x{ratio[1]}"
 
             self.set_aspect_ratio(ratio)
-            box, _ = self.crop()
+            box = self.crop()
             ret[ratio_str] = box_to_geometry(box)
 
         return ret
 
 
-def draw(image, boxes, color=(0, 255, 0), thickness=1):
+def draw(image, faces, color=(0, 255, 0), thickness=1):
     """
     Draw boxes on the image. This function does not modify the image in-place.
     Args:
         image: A numpy BGR image.
-        boxes: A list of dicts of {xmin, xmax, ymin, ymax, confidence}
+        faces: A list of dicts of {xmin, xmax, ymin, ymax}
         colors: Color (BGR) used to draw.
         thickness: Thickness of the line.
     Returns:
         A drawn image.
     """
     image = image.copy()
-    for box in boxes:
-        xmin, ymin, xmax, ymax = box["xmin"], box["ymin"], box["xmax"], box["ymax"]
+    for face in faces:
+        xmin, ymin, xmax, ymax = face["xmin"], face["ymin"], face["xmax"], face["ymax"]
         cv2.rectangle(image, (xmin, ymin), (xmax, ymax), color, thickness)
     return image
 
@@ -345,25 +354,24 @@ def draw(image, boxes, color=(0, 255, 0), thickness=1):
 def detect(
     img,
     face_score_threshold: float,
-):
+) -> list[Face]:
     image = cv2.imread(img)
     preds = DETECTOR(image)
 
-    boxes = []
+    faces = []
     for pred in preds:
-        box = pred["bbox"]
-        score = box[4]
+        face = pred["bbox"]
+        score = face[4]
         if score < face_score_threshold:
             continue
 
-        boxes.append(
+        faces.append(
             {
-                "xmin": int(box[0]),
-                "ymin": int(box[1]),
-                "xmax": int(box[2]),
-                "ymax": int(box[3]),
-                "confidence": box[4],
+                "xmin": int(face[0]),
+                "ymin": int(face[1]),
+                "xmax": int(face[2]),
+                "ymax": int(face[3]),
             }
         )
 
-    return boxes
+    return faces

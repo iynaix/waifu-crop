@@ -75,21 +75,20 @@ if __name__ == "__main__":
             subprocess.run(["oxipng", "--opt", "max", out_path])
 
         # crop faces and write data
-        geometries = None
-        if faces := detect(str(out_path), face_score_threshold=0.5):
-            image = cv2.imread(str(out_path))
-            geometries = Cropper(image, faces).geometries()
+        faces = detect(str(out_path), face_score_threshold=0.5):
+        image = cv2.imread(str(out_path))
+        geometries = Cropper(image, faces).geometries()
 
-            # output vertical image for preview
-            if len(faces) > 1:
-                PREVIEW_DIR.mkdir(exist_ok=True)
+        # output vertical image for preview
+        if len(faces) > 1:
+            PREVIEW_DIR.mkdir(exist_ok=True)
 
-                vertical_str = f"{VERTICAL_ASPECT_RATIO[0]}x{VERTICAL_ASPECT_RATIO[1]}"
-                crop_from_geometry(
-                    geometries[vertical_str],
-                    str(out_path),
-                    str(PREVIEW_DIR / p.name),
-                )
+            vertical_str = f"{VERTICAL_ASPECT_RATIO[0]}x{VERTICAL_ASPECT_RATIO[1]}"
+            crop_from_geometry(
+                geometries[vertical_str],
+                str(out_path),
+                str(PREVIEW_DIR / p.name),
+            )
 
         IMAGE_DATA[out_path.name] = geometries
         IMAGE_DATA.save()
