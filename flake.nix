@@ -1,6 +1,7 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/e32eb6818377a7d3ed2d0815418e6cb8427819e7";
+    # bisect 126f49a01de5b7e35a43fd43f891ecf6d3a51459 for breakage with newer verison
+    nixpkgs.url = "github:NixOS/nixpkgs/1970cee6c1976c86299d8cd30fc5b9dfd6ac5d91";
     systems.url = "github:nix-systems/default";
     devenv.url = "github:cachix/devenv";
     fenix.url = "github:nix-community/fenix";
@@ -62,13 +63,14 @@
                 package = pkgs.python3.withPackages (ps:
                   with ps; [
                     (mmcv.overridePythonAttrs
-                      (old: {
+                      (old: rec {
                         # needed for mmpose < 1.0
                         # mmpose 1.0+ was a major change that broke imports and loading model data
+                        version = "1.7.0";
                         src = pkgs.fetchFromGitHub {
                           owner = "open-mmlab";
                           repo = "mmcv";
-                          rev = "v1.7.0";
+                          rev = "v${version}";
                           hash = "sha256-EVu6D6rTeebTKFCMNIbgQpvBS52TKk3vy2ReReJ9VQE=";
                         };
 
