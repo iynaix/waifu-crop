@@ -75,7 +75,7 @@ if __name__ == "__main__":
             subprocess.run(["oxipng", "--opt", "max", out_path])
 
         # crop faces and write data
-        faces = detect(str(out_path), face_score_threshold=0.5):
+        faces = detect(str(out_path), face_score_threshold=0.5)
         image = cv2.imread(str(out_path))
         geometries = Cropper(image, faces).geometries()
 

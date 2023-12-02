@@ -264,7 +264,7 @@ class Cropper:
         faces_info = [face for face in faces_info if face.area == max_face_area]
 
         # get the midpoint of matches to center the face
-        self.clamp(faces_info[len(faces_info) // 2].start),
+        return self.clamp(faces_info[len(faces_info) // 2].start)
 
     def crop_candidates(self) -> list[Face]:
         if len(self.faces) == 1:
