@@ -58,7 +58,7 @@ class WallpaperInfo:
 
         # cleanup files that have been deleted
         self.data = {}
-        for img in WALLPAPER_DIR.iterdir():
+        for img in iter_images(WALLPAPER_DIR):
             fname = img.name
 
             if fname in loaded:
@@ -375,3 +375,14 @@ def detect(
         )
 
     return faces
+
+
+def iter_images(p: Path):
+    for img in p.iterdir():
+        if not img.is_file():
+            continue
+
+        if img.suffix == ".json":
+            continue
+
+        yield img
