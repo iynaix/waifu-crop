@@ -75,6 +75,7 @@ type WallpapersInfo = HashMap<String, WallInfo>;
 
 #[derive(Debug, Deserialize)]
 pub struct WallInfo {
+    pub filter: String,
     pub faces: Vec<Face>,
     #[serde(rename = "1440x2560")]
     pub r1440x2560: String,

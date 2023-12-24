@@ -65,6 +65,8 @@ class WallpaperInfo:
                 self.data[fname] = loaded[fname]
 
     def __getitem__(self, key):
+        if key not in self.data:
+            return self.data[key.replace(".jpg", ".png")]
         return self.data[key]
 
     def __setitem__(self, key, value):

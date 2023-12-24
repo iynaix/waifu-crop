@@ -1,4 +1,5 @@
 import cv2
+import os
 from pathlib import Path
 from utils import (
     Cropper,
@@ -82,6 +83,9 @@ if __name__ == "__main__":
         fname = path.name
         wallpaper = str(WALLPAPER_DIR / fname)
 
+        if not os.path.exists(wallpaper):
+            wallpaper = wallpaper.replace(".jpg", ".png")
+
         image = cv2.imread(wallpaper)
         faces = detect(wallpaper, face_score_threshold=0.5)
 
@@ -119,7 +123,6 @@ if __name__ == "__main__":
         # crop the image on index selection
         elif key in [ord(c) for c in VALID_KEYS]:
             sel = VALID_KEYS.index(chr(key))
-            print("sel", sel)
             rect = rects[sel]
 
             # update the data
