@@ -25,6 +25,7 @@ HD_ASPECT_RATIO: AspectRatio = (1920, 1080)
 ULTRAWIDE_ASPECT_RATIO: AspectRatio = (3440, 1440)
 VERTICAL_ASPECT_RATIO: AspectRatio = (1440, 2560)
 FRAMEWORK_ASPECT_RATIO: AspectRatio = (2256, 1504)
+SQUARE_ASPECT_RATIO: AspectRatio = (1, 1)
 
 
 class Face(TypedDict):
@@ -317,7 +318,7 @@ class Cropper:
 
     def geometries(self):
         ret = {
-            "faces": [(f["xmin"], f["xmin"], f["ymin"], f["ymax"]) for f in self.faces]
+            "faces": [(f["xmin"], f["xmax"], f["ymin"], f["ymax"]) for f in self.faces]
         }
 
         for ratio in [
@@ -325,6 +326,7 @@ class Cropper:
             FRAMEWORK_ASPECT_RATIO,
             ULTRAWIDE_ASPECT_RATIO,
             HD_ASPECT_RATIO,
+            SQUARE_ASPECT_RATIO,
         ]:
             ratio_str = f"{ratio[0]}x{ratio[1]}"
 

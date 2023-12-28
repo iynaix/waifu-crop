@@ -10,6 +10,7 @@ pub const HD_ASPECT_RATIO: AspectRatio = AspectRatio(1920, 1080);
 pub const ULTRAWIDE_ASPECT_RATIO: AspectRatio = AspectRatio(3440, 1440);
 pub const VERTICAL_ASPECT_RATIO: AspectRatio = AspectRatio(1440, 2560);
 pub const FRAMEWORK_ASPECT_RATIO: AspectRatio = AspectRatio(2256, 1504);
+pub const SQUARE_ASPECT_RATIO: AspectRatio = AspectRatio(1, 1);
 
 impl fmt::Display for AspectRatio {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
