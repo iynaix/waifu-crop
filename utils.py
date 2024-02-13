@@ -25,6 +25,7 @@ HD_ASPECT_RATIO: AspectRatio = (1920, 1080)
 ULTRAWIDE_ASPECT_RATIO: AspectRatio = (3440, 1440)
 VERTICAL_ASPECT_RATIO: AspectRatio = (1440, 2560)
 FRAMEWORK_ASPECT_RATIO: AspectRatio = (2256, 1504)
+SQUARE_ASPECT_RATIO: AspectRatio = (1, 1)
 
 
 class Face(TypedDict):
@@ -58,13 +59,15 @@ class WallpaperInfo:
 
         # cleanup files that have been deleted
         self.data = {}
-        for img in WALLPAPER_DIR.iterdir():
+        for img in iter_images(WALLPAPER_DIR):
             fname = img.name
 
             if fname in loaded:
                 self.data[fname] = loaded[fname]
 
     def __getitem__(self, key):
+        if key not in self.data:
+            return self.data[key.replace(".jpg", ".png")]
         return self.data[key]
 
     def __setitem__(self, key, value):
@@ -152,7 +155,7 @@ class Cropper:
             else:
                 return {**empty, "ymin": min_, "ymax": max_, "xmax": self.width}
 
-    def crop_single_face(self) -> tuple[Face, list[Face]]:
+    def crop_single_face(self):
         face = self.faces[0]
         face_mid = (face[f"{self.direction}min"] + face[f"{self.direction}max"]) / 2
         target = (
@@ -315,7 +318,7 @@ class Cropper:
 
     def geometries(self):
         ret = {
-            "faces": [(f["xmin"], f["xmin"], f["ymin"], f["ymax"]) for f in self.faces]
+            "faces": [(f["xmin"], f["xmax"], f["ymin"], f["ymax"]) for f in self.faces]
         }
 
         for ratio in [
@@ -323,6 +326,7 @@ class Cropper:
             FRAMEWORK_ASPECT_RATIO,
             ULTRAWIDE_ASPECT_RATIO,
             HD_ASPECT_RATIO,
+            SQUARE_ASPECT_RATIO,
         ]:
             ratio_str = f"{ratio[0]}x{ratio[1]}"
 
@@ -375,3 +379,14 @@ def detect(
         )
 
     return faces
+
+
+def iter_images(p: Path):
+    for img in p.iterdir():
+        if not img.is_file():
+            continue
+
+        if img.suffix == ".json":
+            continue
+
+        yield img

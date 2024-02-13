@@ -8,6 +8,7 @@ from utils import (
     WALLPAPER_DIR,
     VERTICAL_ASPECT_RATIO,
     detect,
+    iter_images,
 )
 from pathlib import Path
 
@@ -17,7 +18,7 @@ TARGET_WIDTH = 3440
 TARGET_HEIGHT = 1504  # framework height
 
 
-def crop_from_geometry(geometry: str, input: str, output: str) -> str:
+def crop_from_geometry(geometry: str, input: str, output: str):
     # split geometry into width, height, x, y
     w, h, x, y = [
         int(n) for n in geometry.replace("x", " ").replace("+", " ").split(" ")
@@ -35,7 +36,7 @@ if __name__ == "__main__":
     PREVIEW_DIR = INPUT_DIR / "preview"
     IMAGE_DATA = WallpaperInfo()
 
-    for p in sorted(d for d in INPUT_DIR.iterdir() if d.is_file()):
+    for p in sorted(iter_images(INPUT_DIR)):
         img = Image.open(p)
         width, height = img.size
 
@@ -90,5 +91,9 @@ if __name__ == "__main__":
                 str(PREVIEW_DIR / p.name),
             )
 
-        IMAGE_DATA[out_path.name] = geometries
+        IMAGE_DATA[out_path.name] = {
+            **geometries,
+            # default to dark16
+            "filter": "dark16",
+        }
         IMAGE_DATA.save()

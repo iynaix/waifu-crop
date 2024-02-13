@@ -1,12 +1,13 @@
 import cv2
 from utils import (
+    Cropper,
+    # FRAMEWORK_ASPECT_RATIO,
     Face,
+    VERTICAL_ASPECT_RATIO,
     WALLPAPER_DIR,
     detect,
-    Cropper,
     draw,
-    # FRAMEWORK_ASPECT_RATIO,
-    VERTICAL_ASPECT_RATIO,
+    iter_images,
 )
 
 
@@ -48,10 +49,10 @@ def preview_image(
 
 if __name__ == "__main__":
     # skip images if already cropped
-    image_paths = [img for img in WALLPAPER_DIR.iterdir()]
+    image_paths = list(iter_images(WALLPAPER_DIR))
 
     # uncomment to test specific images
-    # image_paths = sorted(Path("in").iterdir())
+    # image_paths = sorted(iter_images(Path("in")))
 
     print("Start inferencing. Press `q` to cancel. Press  `-` to go back.")
     idx = 0

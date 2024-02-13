@@ -1,7 +1,5 @@
 .devenv
 .direnv
 __pycache__
-skip.json
 in/*
 target/*
-dist/*

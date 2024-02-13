@@ -1,12 +1,14 @@
 import cv2
+import os
 from pathlib import Path
 from utils import (
     Cropper,
     VERTICAL_ASPECT_RATIO,
-    detect,
     WALLPAPER_DIR,
     WallpaperInfo,
     box_to_geometry,
+    detect,
+    iter_images,
 )
 
 INPUT_DIR = Path("in/preview")
@@ -66,7 +68,7 @@ if __name__ == "__main__":
     ratio = VERTICAL_ASPECT_RATIO
 
     # skip images if already cropped
-    image_paths = sorted(INPUT_DIR.iterdir())
+    image_paths = sorted(iter_images(INPUT_DIR))
     IMAGE_DATA = WallpaperInfo()
 
     print("Start inferencing. Press `q` to cancel. Press  `-` to go back.")
@@ -80,6 +82,9 @@ if __name__ == "__main__":
         # use defaults
         fname = path.name
         wallpaper = str(WALLPAPER_DIR / fname)
+
+        if not os.path.exists(wallpaper):
+            wallpaper = wallpaper.replace(".jpg", ".png")
 
         image = cv2.imread(wallpaper)
         faces = detect(wallpaper, face_score_threshold=0.5)
@@ -118,7 +123,6 @@ if __name__ == "__main__":
         # crop the image on index selection
         elif key in [ord(c) for c in VALID_KEYS]:
             sel = VALID_KEYS.index(chr(key))
-            print("sel", sel)
             rect = rects[sel]
 
             # update the data
