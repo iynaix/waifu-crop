@@ -1,6 +1,7 @@
 import cv2
 from utils import (
     WallpaperInfo,
+    Face,
     Cropper,
     WALLPAPER_DIR,
     box_to_geometry,
@@ -15,7 +16,10 @@ if __name__ == "__main__":
 
         cropper = Cropper(
             cv2.imread(str(WALLPAPER_DIR / fname)),
-            [dict(zip(("xmin", "xmax", "ymin", "ymax"), f)) for f in info["faces"]],
+            [
+                Face(xmin=f["xmin"], xmax=f["xmax"], ymin=f["ymin"], ymax=f["ymax"])
+                for f in info["faces"]
+            ],
             aspect_ratio=SQUARE_ASPECT_RATIO,
         )
 

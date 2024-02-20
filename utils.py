@@ -118,42 +118,36 @@ class Cropper:
             )
         return (ret, "y" if ret[0] == self.width else "x")
 
-    def clamp(self, val):
+    def clamp(self, val) -> Face:
         min_ = int(val)
-        empty = {
-            "xmin": 0,
-            "xmax": 0,
-            "ymin": 0,
-            "ymax": 0,
-        }
 
         # check if out of bounds and constrain it
         if self.direction == "x":
             max_ = min_ + self.target_width
             if min_ < 0:
-                return {**empty, "xmax": self.target_width, "ymax": self.height}
+                return Face(xmin=0, ymin=0, xmax=self.target_width, ymax=self.height)
             elif max_ > self.width:
-                return {
-                    **empty,
-                    "xmin": self.width - self.target_width,
-                    "xmax": self.width,
-                    "ymax": self.height,
-                }
+                return Face(
+                    ymin=0,
+                    xmin=self.width - self.target_width,
+                    xmax=self.width,
+                    ymax=self.height,
+                )
             else:
-                return {**empty, "xmin": min_, "xmax": max_, "ymax": self.height}
+                return Face(ymin=0, xmin=min_, xmax=max_, ymax=self.height)
         else:
             max_ = min_ + self.target_height
             if min_ < 0:
-                return {**empty, "ymax": self.target_height, "xmax": self.width}
+                return Face(xmin=0, ymin=0, ymax=self.target_height, xmax=self.width)
             elif max_ > self.height:
-                return {
-                    **empty,
-                    "ymin": self.height - self.target_height,
-                    "xmax": self.width,
-                    "ymax": self.height,
-                }
+                return Face(
+                    xmin=0,
+                    ymin=self.height - self.target_height,
+                    xmax=self.width,
+                    ymax=self.height,
+                )
             else:
-                return {**empty, "ymin": min_, "ymax": max_, "xmax": self.width}
+                return Face(xmin=0, ymin=min_, ymax=max_, xmax=self.width)
 
     def crop_single_face(self):
         face = self.faces[0]
@@ -316,10 +310,11 @@ class Cropper:
             key=lambda r: r[min_],
         )
 
+    def faces_tuples(self):
+        return [(f["xmin"], f["xmax"], f["ymin"], f["ymax"]) for f in self.faces]
+
     def geometries(self):
-        ret = {
-            "faces": [(f["xmin"], f["xmax"], f["ymin"], f["ymax"]) for f in self.faces]
-        }
+        ret = {}
 
         for ratio in [
             VERTICAL_ASPECT_RATIO,

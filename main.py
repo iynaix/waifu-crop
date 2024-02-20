@@ -64,7 +64,7 @@ if __name__ == "__main__":
             needs_resize = width2 >= TARGET_WIDTH and height2 >= TARGET_HEIGHT
             if needs_resize:
                 img = Image.open(out_path)
-                img = img.resize((width2, height2), Image.LANCZOS)
+                img = img.resize((width2, height2), Image.Resampling.LANCZOS)
                 img.save(out_path)
         else:
             # copy to output dir
@@ -78,7 +78,8 @@ if __name__ == "__main__":
         # crop faces and write data
         faces = detect(str(out_path), face_score_threshold=0.5)
         image = cv2.imread(str(out_path))
-        geometries = Cropper(image, faces).geometries()
+        cropper = Cropper(image, faces)
+        geometries = cropper.geometries()
 
         # output vertical image for preview
         if len(faces) > 1:
@@ -93,6 +94,7 @@ if __name__ == "__main__":
 
         IMAGE_DATA[out_path.name] = {
             **geometries,
+            "faces": cropper.faces_tuples(),
             # default to dark16
             "filter": "dark16",
         }
