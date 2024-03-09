@@ -1,4 +1,5 @@
 import cv2
+from pathlib import Path
 from utils import (
     Cropper,
     # FRAMEWORK_ASPECT_RATIO,
@@ -50,6 +51,7 @@ def preview_image(
 if __name__ == "__main__":
     # skip images if already cropped
     image_paths = list(iter_images(WALLPAPER_DIR))
+    # image_paths = list(iter_images(Path("in")))
 
     # uncomment to test specific images
     # image_paths = sorted(iter_images(Path("in")))
