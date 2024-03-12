@@ -40,32 +40,29 @@ if __name__ == "__main__":
         img = Image.open(p)
         width, height = img.size
 
-        needs_upscale = not (width >= TARGET_WIDTH and height >= TARGET_HEIGHT)
+        scale_factor = 1
+        for i in (1, 2, 3, 4):
+            if width * i >= TARGET_WIDTH and height * i >= TARGET_HEIGHT:
+                scale_factor = i
+                break
 
+        needs_upscale = scale_factor > 1
         if needs_upscale:
             out_path = WALLPAPER_DIR / (
                 p.name.replace(".jpg", ".png").replace(".jpeg", ".png")
             )
-            width2 = width * 2
-            height2 = height * 2
 
             subprocess.run(
                 [
-                    "realesrgan-ncnn-vulkan",
+                    "realcugan-ncnn-vulkan",
                     "-i",
                     p,
-                    "-n",
-                    "realesrgan-x4plus-anime",
+                    "-s",
+                    str(scale_factor),
                     "-o",
                     out_path,
                 ]
             )
-
-            needs_resize = width2 >= TARGET_WIDTH and height2 >= TARGET_HEIGHT
-            if needs_resize:
-                img = Image.open(out_path)
-                img = img.resize((width2, height2), Image.Resampling.LANCZOS)
-                img.save(out_path)
         else:
             # copy to output dir
             out_path = WALLPAPER_DIR / p.name

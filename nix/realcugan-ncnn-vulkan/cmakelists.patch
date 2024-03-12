@@ -1,0 +1,17 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index dac535d..ef26652 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -62,9 +62,11 @@ if(USE_SYSTEM_NCNN)
+         message(STATUS "Using glslang install located at ${GLSLANG_TARGET_DIR}")
+
+         find_package(Threads)
++        find_package(SPIRV-Tools-opt REQUIRED)
+
++        include("${GLSLANG_TARGET_DIR}/SPIRV-Tools/SPIRV-ToolsTarget.cmake")
++        include("${GLSLANG_TARGET_DIR}/SPIRV-Tools-opt/SPIRV-Tools-optTargets.cmake")
+         include("${GLSLANG_TARGET_DIR}/OSDependentTargets.cmake")
+-        include("${GLSLANG_TARGET_DIR}/OGLCompilerTargets.cmake")
+         if(EXISTS "${GLSLANG_TARGET_DIR}/HLSLTargets.cmake")
+             # hlsl support can be optional
+             include("${GLSLANG_TARGET_DIR}/HLSLTargets.cmake")

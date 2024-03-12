@@ -13,7 +13,7 @@ VERT_WALLPAPER_DIR = Path("~/Pictures/WallpapersVertical").expanduser()
 FRAMEWORK_WALLPAPER_DIR = Path("~/Pictures/WallpapersFramework").expanduser()
 DETECTOR = anime_face_detector.create_detector(
     # faster-rcnn is also available
-    face_detector_name="faster-rcnn",
+    face_detector_name="yolov3",
     # "cuda:0" is also available
     device="cpu",
 )
