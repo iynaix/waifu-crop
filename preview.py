@@ -66,10 +66,7 @@ if __name__ == "__main__":
 
         # use defaults
         image = cv2.imread(str(path))
-        faces = detect(
-            str(path),
-            face_score_threshold=0.5,
-        )
+        faces = detect(str(path))
 
         # skip if no faces
         if not faces:

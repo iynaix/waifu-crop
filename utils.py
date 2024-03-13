@@ -1,22 +1,16 @@
 import cv2
 import json
+import subprocess
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TypedDict, NamedTuple, Any
-import anime_face_detector
 
 
 WALLPAPER_DIR = Path("~/Pictures/Wallpapers").expanduser()
 
 VERT_WALLPAPER_DIR = Path("~/Pictures/WallpapersVertical").expanduser()
 FRAMEWORK_WALLPAPER_DIR = Path("~/Pictures/WallpapersFramework").expanduser()
-DETECTOR = anime_face_detector.create_detector(
-    # faster-rcnn is also available
-    face_detector_name="yolov3",
-    # "cuda:0" is also available
-    device="cpu",
-)
 
 Dimensions = tuple[int, int]
 AspectRatio = tuple[int, int]
@@ -351,29 +345,14 @@ def draw(image, faces, color=(0, 255, 0), thickness=1):
 
 
 def detect(
-    img,
-    face_score_threshold: float,
+    image,
 ) -> list[Face]:
-    image = cv2.imread(img)
-    preds = DETECTOR(image)
-
-    faces = []
-    for pred in preds:
-        face = pred["bbox"]
-        score = face[4]
-        if score < face_score_threshold:
-            continue
-
-        faces.append(
-            {
-                "xmin": int(face[0]),
-                "ymin": int(face[1]),
-                "xmax": int(face[2]),
-                "ymax": int(face[3]),
-            }
-        )
-
-    return faces
+    # read output of terminal command `anime-face-detector img` as json
+    result = subprocess.run(
+        ["anime-face-detector", image], capture_output=True, text=True
+    )
+    line = result.stdout.splitlines()[0]
+    return list(json.loads(line).values())[0]
 
 
 def iter_images(p: Path):

@@ -73,7 +73,7 @@ if __name__ == "__main__":
             subprocess.run(["oxipng", "--opt", "max", out_path])
 
         # crop faces and write data
-        faces = detect(str(out_path), face_score_threshold=0.5)
+        faces = detect(str(out_path))
         image = cv2.imread(str(out_path))
         cropper = Cropper(image, faces)
         geometries = cropper.geometries()
@@ -92,7 +92,5 @@ if __name__ == "__main__":
         IMAGE_DATA[out_path.name] = {
             **geometries,
             "faces": cropper.faces_tuples(),
-            # default to dark16
-            "filter": "dark16",
         }
         IMAGE_DATA.save()

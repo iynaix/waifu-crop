@@ -87,7 +87,7 @@ if __name__ == "__main__":
             wallpaper = wallpaper.replace(".jpg", ".png")
 
         image = cv2.imread(wallpaper)
-        faces = detect(wallpaper, face_score_threshold=0.5)
+        faces = detect(wallpaper)
 
         # skip if no faces
         if not faces:

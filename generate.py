@@ -39,7 +39,7 @@ if __name__ == "__main__":
 
         print(fname)
         image = cv2.imread(str(img))
-        faces = detect(str(img), face_score_threshold=0.5)
+        faces = detect(str(img))
         cropper = Cropper(image, faces)
         IMAGE_DATA[fname] = {
             "faces": cropper.faces_tuples(),
