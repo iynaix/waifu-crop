@@ -126,7 +126,7 @@ if __name__ == "__main__":
             rect = rects[sel]
 
             # update the data
-            ratio_str = f"{ratio[0]}x{ratio[1]}"
+            ratio_str = f"r{ratio[0]}x{ratio[1]}"
             IMAGE_DATA[fname][ratio_str] = box_to_geometry(rect)
 
             IMAGE_DATA.save()

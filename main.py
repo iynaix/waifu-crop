@@ -21,7 +21,8 @@ TARGET_HEIGHT = 1504  # framework height
 def crop_from_geometry(geometry: str, input: str, output: str):
     # split geometry into width, height, x, y
     w, h, x, y = [
-        int(n) for n in geometry.replace("x", " ").replace("+", " ").split(" ")
+        int(n)
+        for n in geometry.lstrip("r").replace("x", " ").replace("+", " ").split(" ")
     ]
 
     xmax = x + w
@@ -82,7 +83,7 @@ if __name__ == "__main__":
         if len(faces) > 1:
             PREVIEW_DIR.mkdir(exist_ok=True)
 
-            vertical_str = f"{VERTICAL_ASPECT_RATIO[0]}x{VERTICAL_ASPECT_RATIO[1]}"
+            vertical_str = f"r{VERTICAL_ASPECT_RATIO[0]}x{VERTICAL_ASPECT_RATIO[1]}"
             crop_from_geometry(
                 geometries[vertical_str],
                 str(out_path),
@@ -90,6 +91,7 @@ if __name__ == "__main__":
             )
 
         IMAGE_DATA[out_path.name] = {
+            "filename": out_path.name,
             **geometries,
             "faces": cropper.faces_tuples(),
         }

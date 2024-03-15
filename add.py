@@ -23,5 +23,5 @@ if __name__ == "__main__":
             aspect_ratio=SQUARE_ASPECT_RATIO,
         )
 
-        IMAGE_DATA[fname]["1x1"] = box_to_geometry(cropper.crop())
+        IMAGE_DATA[fname]["r1x1"] = box_to_geometry(cropper.crop())
     IMAGE_DATA.save()

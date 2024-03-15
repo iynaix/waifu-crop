@@ -1,4 +1,5 @@
 import cv2
+import csv
 import json
 import subprocess
 from collections import defaultdict
@@ -20,6 +21,17 @@ ULTRAWIDE_ASPECT_RATIO: AspectRatio = (3440, 1440)
 VERTICAL_ASPECT_RATIO: AspectRatio = (1440, 2560)
 FRAMEWORK_ASPECT_RATIO: AspectRatio = (2256, 1504)
 SQUARE_ASPECT_RATIO: AspectRatio = (1, 1)
+
+CSV_FIELDS = (
+    "filename",
+    "faces",
+    "r1440x2560",
+    "r2256x1504",
+    "r3440x1440",
+    "r1920x1080",
+    "r1x1",
+    "wallust",
+)
 
 
 class Face(TypedDict):
@@ -45,9 +57,17 @@ def box_to_geometry(face: Face) -> str:
 
 class WallpaperInfo:
     def __init__(self):
-        self.path = WALLPAPER_DIR / "wallpapers.json"
+        self.path = WALLPAPER_DIR / "wallpapers.csv"
         try:
-            loaded = json.load(open(self.path))
+            loaded = {}
+            csvfile = open(self.path)
+            csvfile.readline()  # Read and discard the header
+            for wall in csv.DictReader(csvfile, fieldnames=CSV_FIELDS):
+                loaded[wall["filename"]] = {
+                    **wall,
+                    # use ast eval to convert string to list
+                    "faces": json.loads(wall["faces"]),
+                }
         except FileNotFoundError:
             loaded = {}
 
@@ -71,7 +91,17 @@ class WallpaperInfo:
         return key in self.data
 
     def save(self):
-        json.dump(self.data, open(self.path, "w"), indent=2)
+        with open(self.path, "w") as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=CSV_FIELDS)
+            writer.writeheader()
+            for wall in self.data.values():
+                writer.writerow(
+                    {
+                        **wall,
+                        # minimize whitespace
+                        "faces": json.dumps(wall["faces"], separators=(",", ":")),
+                    }
+                )
 
 
 @dataclass
@@ -317,7 +347,7 @@ class Cropper:
             HD_ASPECT_RATIO,
             SQUARE_ASPECT_RATIO,
         ]:
-            ratio_str = f"{ratio[0]}x{ratio[1]}"
+            ratio_str = f"r{ratio[0]}x{ratio[1]}"
 
             self.set_aspect_ratio(ratio)
             box = self.crop()
@@ -361,6 +391,9 @@ def iter_images(p: Path):
             continue
 
         if img.suffix == ".json":
+            continue
+
+        if img.suffix == ".csv":
             continue
 
         yield img

@@ -14,7 +14,7 @@ WallpaperGeometries = dict[str, dict[str, str]]
 
 
 def ratio_str(ratio: tuple[int, int]) -> str:
-    return f"{ratio[0]}x{ratio[1]}"
+    return f"r{ratio[0]}x{ratio[1]}"
 
 
 def swww(img: str, geometry: str, output: str) -> str:
